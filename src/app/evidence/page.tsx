@@ -74,6 +74,11 @@ function EvidenceVaultContent() {
         </div>
       </section>
 
+      {/* Methodology Notice Banner */}
+      <div className="bg-[#FFF4E5] border-2 border-black py-4 px-6 w-full text-xs font-mono text-[#663C00] leading-relaxed shadow-[4px_4px_0px_#050505]">
+        <span className="font-black uppercase text-[#B25E00] block mb-1">METHODOLOGY NOTICE:</span> LeakMap AI models potential jurisdictional exposure based on official provider subprocessors, known API gateways, data residency configurations, and inference rules. Because proprietary AI networks remain unobservable, we do not trace exact physical server routes or sniff real-time prompt packets.
+      </div>
+
       {/* Deployment Check & Disclaimer Banner Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Warning Notice Banner */}
@@ -118,6 +123,50 @@ function EvidenceVaultContent() {
           </div>
         </div>
       </div>
+
+      {/* HOW PATHWAYS ARE BUILT Visual Timeline */}
+      <section className="flex flex-col gap-4 border-2 border-black bg-white p-6 shadow-[6px_6px_0px_#050505]">
+        <div className="border-b border-black pb-3 mb-2 flex items-center gap-2">
+          <Info size={20} className="text-[#3B00FF]" />
+          <h2 className="text-xl font-black text-black uppercase tracking-tight font-display">HOW JURISDICTIONAL PATHWAYS ARE BUILT</h2>
+        </div>
+        
+        <p className="text-xs font-semibold text-black uppercase leading-relaxed max-w-4xl mb-2">
+          Jurisdictional exposure routes are modeled dynamically by analyzing connection points and provider rules across three discrete layers. We never claim to observe internal proprietary GPU routing.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="border border-black p-4 bg-[#F4F2EC] flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 bg-[#00AEEF] text-white flex items-center justify-center font-black text-xs">1</span>
+              <span className="font-extrabold text-[11.5px] uppercase">VERIFIED ENDPOINTS</span>
+            </div>
+            <p className="text-[10px] text-[#77776F] uppercase leading-relaxed font-semibold">
+              Solid Cyan lines represent active DNS queries and network handshakes resolving to the provider's public API edge gateways (e.g. India to Singapore).
+            </p>
+          </div>
+
+          <div className="border border-black p-4 bg-[#F4F2EC] flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 bg-[#3B00FF] text-white flex items-center justify-center font-black text-xs">2</span>
+              <span className="font-extrabold text-[11.5px] uppercase">DISCLOSED EXPOSURE</span>
+            </div>
+            <p className="text-[10px] text-[#77776F] uppercase leading-relaxed font-semibold">
+              Dashed Blue/Purple lines represent compute nodes and subprocessors explicitly disclosed under provider terms of service, DPAs, or privacy logs.
+            </p>
+          </div>
+
+          <div className="border border-black p-4 bg-[#F4F2EC] flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-6 h-6 bg-[#EF2B2B] text-white flex items-center justify-center font-black text-xs">3</span>
+              <span className="font-extrabold text-[11.5px] uppercase">INFERRED RISK & UNKNOWN</span>
+            </div>
+            <p className="text-[10px] text-[#77776F] uppercase leading-relaxed font-semibold">
+              Dotted lines represent unobservable internal routing and failover regions where data processing routes are inferred or fully private.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Section 1: Claim Ledger */}
       <section className="flex flex-col gap-4">

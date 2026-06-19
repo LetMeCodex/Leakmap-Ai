@@ -122,6 +122,9 @@ export default function JurisdictionGlobe({
 
     let list: Omit<MapRoute, 'evidenceId'>[] = [];
 
+    const activeResult = useScanStore.getState().activeResult;
+    const isLive = activeResult?.mode === 'live';
+
     switch (pId) {
       case 'gemini':
         list = [
@@ -130,9 +133,9 @@ export default function JurisdictionGlobe({
             from: points.india,
             to: points.singapore,
             type: 'verified',
-            confidence: 98,
+            confidence: isLive ? 90 : 50,
             edge: { from: 'dns', to: 'gateway' },
-            source: 'RUNTIME API ENDPOINT',
+            source: 'VERIFIED ENDPOINT',
           },
           {
             id: 'gem-r2',
@@ -141,16 +144,16 @@ export default function JurisdictionGlobe({
             type: 'disclosed',
             confidence: 80,
             edge: { from: 'gateway', to: 'vertex' },
-            source: 'GOOGLE SUBPROCESSOR REGISTRY',
+            source: 'DISCLOSED EXPOSURE',
           },
           {
             id: 'gem-r3',
             from: points.us_central,
             to: points.us_east,
-            type: 'inferred',
-            confidence: 60,
+            type: 'unknown',
+            confidence: 20,
             edge: { from: 'vertex', to: 'storage' },
-            source: 'DYNAMIC STORAGE ROUTING ANALYSIS',
+            source: 'UNKNOWN INTERNAL PATH',
           },
         ];
         break;
@@ -161,18 +164,18 @@ export default function JurisdictionGlobe({
             from: points.india,
             to: points.delhi,
             type: 'verified',
-            confidence: 99,
+            confidence: isLive ? 95 : 55,
             edge: { from: 'user', to: 'cloudflare' },
-            source: 'RUNTIME API ENDPOINT',
+            source: 'VERIFIED ENDPOINT',
           },
           {
             id: 'oa-r2',
             from: points.delhi,
             to: points.singapore,
             type: 'verified',
-            confidence: 92,
+            confidence: isLive ? 90 : 50,
             edge: { from: 'cloudflare', to: 'azure-gateway' },
-            source: 'EDGE PROXY TRACELOG',
+            source: 'VERIFIED ENDPOINT',
           },
           {
             id: 'oa-r3',
@@ -181,7 +184,7 @@ export default function JurisdictionGlobe({
             type: 'disclosed',
             confidence: 85,
             edge: { from: 'azure-gateway', to: 'openai-core' },
-            source: 'OPENAI TERMS OF PRIVACY',
+            source: 'DISCLOSED EXPOSURE',
           },
           {
             id: 'oa-r4',
@@ -190,7 +193,7 @@ export default function JurisdictionGlobe({
             type: 'inferred',
             confidence: 45,
             edge: { from: 'openai-core', to: 'human-review' },
-            source: 'SUBPROCESSOR EXPOSURE ESTIMATE',
+            source: 'INFERRED RISK',
           },
         ];
         break;
@@ -201,18 +204,18 @@ export default function JurisdictionGlobe({
             from: points.india,
             to: points.delhi,
             type: 'verified',
-            confidence: 99,
+            confidence: isLive ? 95 : 55,
             edge: { from: 'user', to: 'cloudflare-claude' },
-            source: 'RUNTIME API ENDPOINT',
+            source: 'VERIFIED ENDPOINT',
           },
           {
             id: 'cl-r2',
             from: points.delhi,
             to: points.singapore,
             type: 'verified',
-            confidence: 90,
+            confidence: isLive ? 90 : 50,
             edge: { from: 'cloudflare-claude', to: 'aws-endpoint' },
-            source: 'EDGE PROXY TRACELOG',
+            source: 'VERIFIED ENDPOINT',
           },
           {
             id: 'cl-r3',
@@ -221,7 +224,7 @@ export default function JurisdictionGlobe({
             type: 'disclosed',
             confidence: 85,
             edge: { from: 'aws-endpoint', to: 'anthropic-aws' },
-            source: 'ANTHROPIC PRIVACY TERMS',
+            source: 'DISCLOSED EXPOSURE',
           },
         ];
         break;
@@ -232,9 +235,9 @@ export default function JurisdictionGlobe({
             from: points.india,
             to: points.localhost,
             type: 'local',
-            confidence: 100,
+            confidence: 95,
             edge: { from: 'user', to: 'localhost' },
-            source: 'LOOPBACK CONTROLLER VERIFICATION',
+            source: 'LOCAL SOVEREIGN',
           },
         ];
         break;
@@ -493,13 +496,52 @@ export default function JurisdictionGlobe({
           coordinates: points,
         };
 
+        // Draw dynamic prompt sensitivity glow halos if activeResult exists
+        if (storeActiveResult) {
+          ctx.beginPath();
+          pathGenerator(geoLine as any);
+          
+          let glowColor = 'rgba(0, 174, 239, 0.15)'; // low risk cyan glow
+          let glowWidth = 8;
+
+          const sens = storeActiveResult.sensitivityLevel;
+          if (sens === 'Public') {
+            glowColor = 'rgba(0, 174, 239, 0.18)'; 
+            glowWidth = 8;
+          } else if (sens === 'Personal') {
+            glowColor = 'rgba(223, 161, 0, 0.25)'; // medium risk amber glow
+            glowWidth = 12;
+          } else if (sens === 'Confidential' || sens === 'Sensitive') {
+            glowColor = 'rgba(239, 161, 43, 0.25)'; // high risk red/amber glow
+            glowWidth = 14;
+          } else if (sens === 'Critical') {
+            const opacity = 0.15 + Math.sin(pulseTime.current * 0.1) * 0.1;
+            glowColor = `rgba(239, 43, 43, ${opacity})`; // critical pulsing red glow
+            glowWidth = 18;
+          }
+
+          ctx.strokeStyle = glowColor;
+          ctx.lineWidth = glowWidth;
+          if (route.type === 'disclosed') {
+            ctx.setLineDash([6, 4]);
+          } else if (route.type === 'inferred') {
+            ctx.setLineDash([2, 3]);
+          } else if (route.type === 'unknown') {
+            ctx.setLineDash([2, 4]);
+          } else {
+            ctx.setLineDash([]);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
         ctx.beginPath();
         pathGenerator(geoLine as any);
 
         let color = '#00AEEF';
         if (route.type === 'verified') color = '#00AEEF';
         else if (route.type === 'disclosed') color = '#3B00FF';
-        else if (route.type === 'inferred') color = '#EF2B2B';
+        else if (route.type === 'inferred') color = '#DFA100';
         else if (route.type === 'local') color = '#00B873';
         else if (route.type === 'unknown') color = '#77776F';
 
@@ -512,13 +554,37 @@ export default function JurisdictionGlobe({
         } else if (route.type === 'inferred') {
           ctx.setLineDash([2, 3]); // Dotted line
         } else if (route.type === 'unknown') {
-          ctx.setLineDash([4, 6]); // Dashed line for unknown
+          ctx.setLineDash([2, 4]); // Dotted line for unknown
         } else {
           ctx.setLineDash([]);
         }
 
         ctx.stroke();
         ctx.setLineDash([]); // Reset
+
+        // Draw "?" marker on unknown routes
+        if (route.type === 'unknown' && scanProgress > 0.8) {
+          const centerCoords = interpolator(0.5);
+          if (isVisible(centerCoords, size)) {
+            const pos = projection.current(centerCoords);
+            if (pos) {
+              const [cx, cy] = pos;
+              ctx.beginPath();
+              ctx.arc(cx, cy, 6.5, 0, 2 * Math.PI);
+              ctx.fillStyle = '#EF2B2B';
+              ctx.fill();
+              ctx.strokeStyle = '#FFFFFF';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+
+              ctx.fillStyle = '#FFFFFF';
+              ctx.font = 'bold 8.5px monospace';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('?', cx, cy + 0.5);
+            }
+          }
+        }
 
         // 5. Draw Flowing Packet Particles
         if (scanProgress > 0.7) {
@@ -532,13 +598,24 @@ export default function JurisdictionGlobe({
               const pos = projection.current(packetCoords);
               if (pos) {
                 const [px, py] = pos;
+                
+                // Add flickering/fade for inferred or unknown
+                let packetOpacity = 1.0;
+                if (route.type === 'inferred' || route.type === 'unknown') {
+                  packetOpacity = Math.random() > 0.35 ? 0.75 : 0.15; // flickering packets
+                }
+                
                 ctx.beginPath();
                 ctx.arc(px, py, 3.5, 0, 2 * Math.PI);
                 ctx.fillStyle = color;
+                
+                ctx.save();
+                ctx.globalAlpha = packetOpacity;
                 ctx.fill();
                 ctx.strokeStyle = '#FFFFFF';
                 ctx.lineWidth = 1;
                 ctx.stroke();
+                ctx.restore();
               }
             }
           }
@@ -675,23 +752,47 @@ export default function JurisdictionGlobe({
       </div>
 
       {/* Legend overlay */}
-      <div className="absolute bottom-4 left-4 z-20 hidden sm:flex flex-col gap-1 text-[9px] font-mono text-[#050505] bg-white px-3 py-2.5 border border-[#050505] shadow-[2px_2px_0px_#050505]">
-        <p className="font-extrabold uppercase border-b border-[#050505] pb-1.5 mb-1.5 tracking-wider text-[8.5px] text-[#77776F]">Path Evidence Levels</p>
-        <div className="flex items-center gap-2">
-          <span className="text-[#00AEEF] font-bold">—</span>
-          <span className="font-bold">VERIFIED ENDPOINT</span>
+      <div className="absolute bottom-4 left-4 z-20 hidden sm:flex flex-col gap-2 text-[9px] font-mono text-[#050505] bg-white p-3.5 border border-[#050505] shadow-[3px_3px_0px_#050505] max-w-[240px]">
+        <p className="font-extrabold uppercase border-b border-[#050505] pb-1 tracking-wider text-[9px] text-[#77776F]">Path Evidence Levels</p>
+        
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[#00AEEF] font-extrabold text-[12px]">━━</span>
+            <span className="font-extrabold text-black">VERIFIED ENDPOINT</span>
+          </div>
+          <span className="text-[7.5px] text-[#77776F] uppercase leading-tight pl-6 block">Runtime/provider endpoint evidence</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[#3B00FF] font-bold">---</span>
-          <span className="font-bold">DISCLOSED PROCESSOR</span>
+
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[#3B00FF] font-extrabold text-[12px]">- -</span>
+            <span className="font-extrabold text-black">DISCLOSED EXPOSURE</span>
+          </div>
+          <span className="text-[7.5px] text-[#77776F] uppercase leading-tight pl-6 block">Official provider policy/subprocessor evidence</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[#EF2B2B] font-bold">···</span>
-          <span className="font-bold">INFERRED RISK</span>
+
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[#DFA100] font-extrabold text-[12px]">···</span>
+            <span className="font-extrabold text-black">INFERRED RISK</span>
+          </div>
+          <span className="text-[7.5px] text-[#77776F] uppercase leading-tight pl-6 block">Estimated uncertainty from routing/policy</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[#00B873] font-bold">●</span>
-          <span className="font-bold">LOCAL SOVEREIGN</span>
+
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[#77776F] font-extrabold text-[12px]">???</span>
+            <span className="font-extrabold text-black">UNKNOWN INTERNAL PATH</span>
+          </div>
+          <span className="text-[7.5px] text-[#77776F] uppercase leading-tight pl-6 block">Not externally observable</span>
+        </div>
+
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[#00B873] font-extrabold text-[12px]">●</span>
+            <span className="font-extrabold text-black">LOCAL SOVEREIGN</span>
+          </div>
+          <span className="text-[7.5px] text-[#77776F] uppercase leading-tight pl-6 block">Localhost loopback data</span>
         </div>
       </div>
 

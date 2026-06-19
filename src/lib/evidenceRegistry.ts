@@ -196,6 +196,46 @@ export const claimLedger: ClaimLedgerItem[] = [
     status: "Unknown / not observable",
     whatItProves: "Confirms that private neural network weight calculations and server-to-server routing inside providers remain unobservable.",
     whatItDoesNotProve: "Does not verify whether providers violate their published storage boundaries or GDPR rules."
+  },
+  {
+    id: "LM-METHOD-001",
+    uiClaim: "LeakMap models jurisdictional exposure instead of sniffing packets.",
+    evidenceType: "verified",
+    confidenceScore: 100,
+    sourceIds: ["SRC-LIMITATION-001"],
+    status: "Explicit product limitation",
+    whatItProves: "Confirms that LeakMap relies on official terms and known endpoints rather than real-time network sniffing.",
+    whatItDoesNotProve: "Does not prove proprietary server data transmission."
+  },
+  {
+    id: "LM-METHOD-002",
+    uiClaim: "Same provider endpoint produces same base pathway across prompts.",
+    evidenceType: "verified",
+    confidenceScore: 90,
+    sourceIds: ["SRC-LIMITATION-001"],
+    status: "Provider route model",
+    whatItProves: "Standard cloud gateways are constant for provider accounts; prompt-specific sensitivity is layered over these pathways.",
+    whatItDoesNotProve: "Does not prove request-specific internal routes."
+  },
+  {
+    id: "LM-METHOD-003",
+    uiClaim: "Risk overlay changes based on prompt sensitivity.",
+    evidenceType: "verified",
+    confidenceScore: 95,
+    sourceIds: ["SRC-RUNTIME-001"],
+    status: "Prompt-specific risk model",
+    whatItProves: "Highlights path segments with customized glowing overlays according to the detected sensitivity of prompt content.",
+    whatItDoesNotProve: "Does not prove exact server locations."
+  },
+  {
+    id: "LM-METHOD-004",
+    uiClaim: "Disclosed subprocessors are listed for possible, not guaranteed, exposure.",
+    evidenceType: "disclosed",
+    confidenceScore: 100,
+    sourceIds: ["SRC-OPENAI-002", "SRC-CLAUDE-002"],
+    status: "Anti-overclaim safeguard",
+    whatItProves: "Confirms that listed subprocessor companies are contractually authorized, but does not prove they touched a specific prompt.",
+    whatItDoesNotProve: "Does not prove request-specific subprocessor data flows."
   }
 ];
 

@@ -7,24 +7,24 @@ import Link from 'next/link';
 
 const QUICK_PROMPTS = [
   {
-    label: 'Newton\'s Laws',
-    text: 'Explain Newton\'s laws of motion with simple real-world examples.',
-    desc: 'Public / Academic Query',
+    label: 'Photosynthesis',
+    text: 'Explain photosynthesis in simple terms.',
+    desc: 'Public / Academic Query (Low Risk)',
   },
   {
     label: 'Resume Rewrite',
     text: 'Rewrite my executive resume. I graduated from Delhi University in 2024. My contact phone is +91-9876543210 and email is anish.jha@gmail.com.',
-    desc: 'Contains phone, email, college PII',
+    desc: 'Contains phone, email, college PII (Medium Risk)',
   },
   {
     label: 'Medical Report Summary',
     text: 'Summarize my father\'s medical file. He has type-2 diabetes and is treated at AIIMS Hospital, Hospital Card #987654321012, Aadhaar ID 1234 5678 9012.',
-    desc: 'Contains critical Health & Gov ID data',
+    desc: 'Contains critical Health & Gov ID data (Critical Risk)',
   },
   {
     label: 'Confidential Fin Plan',
-    text: 'Analyze our startup\'s confidential Q3 cash flows: EBITDA is currently at 12%, revenue growth is 35% but we have high server cost of $40,000/mo.',
-    desc: 'Contains business financial secrets',
+    text: 'Analyze our startup\'s confidential Q3 cash flows: EBITDA is currently at 12%, revenue growth is 35% but we have high server cost of $40,000/mo. Here is our secret API key: sk-live-52x9z.',
+    desc: 'Contains business financial secrets & API key (High Risk)',
   },
 ];
 

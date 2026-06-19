@@ -1,127 +1,140 @@
-export interface SourceRegistryEntry {
-  sourceId: string;
+export type SourceItem = {
+  id: string;
+  sourceId: string; // for backwards compatibility
   provider: string;
   title: string;
   documentType: string;
   claimSupported: string;
+  evidenceType: "official-policy" | "subprocessor-disclosure" | "configuration-evidence" | "retention-evidence" | "methodology-limit";
+  confidence: "high" | "medium-high" | "medium";
   sourceUrl: string;
-  evidenceType: string;
-  confidence: "High" | "Medium-High" | "Medium" | "Low";
   lastReviewed: string;
   notes?: string;
-}
+};
 
-export const sourceRegistry: SourceRegistryEntry[] = [
+// Aliased for compatibility
+export type SourceRegistryEntry = SourceItem;
+
+export const sourceRegistry: SourceItem[] = [
   {
+    id: "SRC-GEMINI-001",
     sourceId: "SRC-GEMINI-001",
     provider: "Google Gemini",
-    title: "Gemini API Additional Terms of Service",
+    title: "Google Gemini API Terms",
     documentType: "Official Terms",
-    claimSupported: "Unpaid Gemini API services may involve human review of API input/output; users are warned not to submit sensitive, confidential, or personal information to unpaid services.",
-    evidenceType: "Disclosed policy evidence",
-    confidence: "High",
+    claimSupported: "Gemini API terms, unpaid service caution, human review/sensitive data warnings where applicable.",
+    evidenceType: "official-policy",
+    confidence: "high",
     sourceUrl: "https://ai.google.dev/gemini-api/terms",
     lastReviewed: "2026-06-20",
     notes: "Applies to unpaid/free tiers of Gemini developer services."
   },
   {
+    id: "SRC-GEMINI-002",
     sourceId: "SRC-GEMINI-002",
     provider: "Google Gemini",
-    title: "Gemini API Data Logging and Sharing",
+    title: "Gemini API Logs / Data Logging Policy",
     documentType: "Official Documentation",
-    claimSupported: "Explains data logging/sharing behavior and cautions around sensitive/confidential/proprietary information in contributed logs.",
-    evidenceType: "Disclosed policy evidence",
-    confidence: "Medium-High",
+    claimSupported: "Gemini API logging/sharing behavior where applicable.",
+    evidenceType: "official-policy",
+    confidence: "medium-high",
     sourceUrl: "https://ai.google.dev/gemini-api/docs/logs-policy",
     lastReviewed: "2026-06-20",
     notes: "Explains the differences between logging states and telemetry collection boundaries."
   },
   {
+    id: "SRC-GOOGLE-001",
     sourceId: "SRC-GOOGLE-001",
     provider: "Google Cloud",
     title: "Google Cloud Platform Subprocessors",
     documentType: "Official Subprocessor List",
-    claimSupported: "Google Cloud lists subprocessors, activities, applicable services/regions, processing countries, and registration countries.",
-    evidenceType: "Disclosed processor evidence",
-    confidence: "High",
+    claimSupported: "Google Cloud subprocessor disclosure, service/region/activity and processing country information where listed.",
+    evidenceType: "subprocessor-disclosure",
+    confidence: "high",
     sourceUrl: "https://cloud.google.com/terms/subprocessors",
     lastReviewed: "2026-06-20",
     notes: "Contractual subprocessor disclosure list details regional entities processing data."
   },
   {
+    id: "SRC-OPENAI-001",
     sourceId: "SRC-OPENAI-001",
     provider: "OpenAI",
     title: "OpenAI API Data Controls",
     documentType: "Official API Documentation",
-    claimSupported: "OpenAI data residency controls are project configuration options for eligible customers.",
-    evidenceType: "Disclosed configuration evidence",
-    confidence: "High",
+    claimSupported: "OpenAI API data controls and data residency configuration claims.",
+    evidenceType: "configuration-evidence",
+    confidence: "high",
     sourceUrl: "https://developers.openai.com/api/docs/guides/your-data",
     lastReviewed: "2026-06-20",
     notes: "Confirms that regional data residency controls exist under enterprise/tier contracts."
   },
   {
+    id: "SRC-OPENAI-002",
     sourceId: "SRC-OPENAI-002",
     provider: "OpenAI",
-    title: "OpenAI Sub-processor List",
+    title: "OpenAI Subprocessor List",
     documentType: "Official Subprocessor List",
-    claimSupported: "OpenAI lists subprocessors that may process customer data under the OpenAI Data Processing Agreement.",
-    evidenceType: "Disclosed processor evidence",
-    confidence: "High",
+    claimSupported: "OpenAI disclosed subprocessor evidence.",
+    evidenceType: "subprocessor-disclosure",
+    confidence: "high",
     sourceUrl: "https://openai.com/policies/sub-processor-list/",
     lastReviewed: "2026-06-20",
     notes: "Maintained subprocessor list identifying computing and support entities."
   },
   {
+    id: "SRC-OPENAI-003",
     sourceId: "SRC-OPENAI-003",
     provider: "OpenAI",
     title: "OpenAI Data Processing Addendum",
     documentType: "Official DPA",
-    claimSupported: "Defines subprocessors and customer data processing terms under OpenAI services.",
-    evidenceType: "Contractual/legal evidence",
-    confidence: "High",
+    claimSupported: "OpenAI customer data processing and subprocessor processing terms.",
+    evidenceType: "official-policy",
+    confidence: "high",
     sourceUrl: "https://openai.com/policies/data-processing-addendum/",
     lastReviewed: "2026-06-20",
     notes: "Legal document defining customer data processing boundaries and instructions."
   },
   {
+    id: "SRC-CLAUDE-001",
     sourceId: "SRC-CLAUDE-001",
     provider: "Anthropic Claude",
-    title: "Claude API and Data Retention",
+    title: "Claude API Data Retention",
     documentType: "Official API Documentation",
-    claimSupported: "Claude API conversation content is not retained by default; retained data is not used for model training without express permission.",
-    evidenceType: "Disclosed retention evidence",
-    confidence: "High",
+    claimSupported: "Claude API retention and training-use caveats.",
+    evidenceType: "retention-evidence",
+    confidence: "high",
     sourceUrl: "https://platform.claude.com/docs/en/manage-claude/api-and-data-retention",
     lastReviewed: "2026-06-20",
     notes: "Contractual default retention statements for non-promotional Claude API requests."
   },
   {
+    id: "SRC-CLAUDE-002",
     sourceId: "SRC-CLAUDE-002",
     provider: "Anthropic",
-    title: "Anthropic Subprocessors",
+    title: "Anthropic Subprocessors / Trust Center",
     documentType: "Official Trust Center",
-    claimSupported: "Anthropic publishes subprocessor information through its Trust Center.",
-    evidenceType: "Disclosed processor evidence",
-    confidence: "Medium-High",
+    claimSupported: "Anthropic subprocessor disclosure.",
+    evidenceType: "subprocessor-disclosure",
+    confidence: "medium-high",
     sourceUrl: "https://trust.anthropic.com/subprocessors",
     lastReviewed: "2026-06-20",
     notes: "Third-party host structures and processing entities are registered here."
   },
   {
+    id: "SRC-LIMITATION-001",
     sourceId: "SRC-LIMITATION-001",
     provider: "LeakMap Methodology",
-    title: "Internal Path Limitation Statement",
+    title: "LeakMap Internal Path Limitation Statement",
     documentType: "Methodology Note",
-    claimSupported: "LeakMap cannot externally verify exact hidden internal data center/model server/GPU routing inside black-box AI providers.",
-    evidenceType: "Methodology limitation",
-    confidence: "High",
-    sourceUrl: "/methodology/internal-path-limits",
+    claimSupported: "Methodology statement that exact hidden provider internal routing cannot be externally verified.",
+    evidenceType: "methodology-limit",
+    confidence: "high",
+    sourceUrl: "/sources",
     lastReviewed: "2026-06-20",
     notes: "Defines the physical boundaries of external cybersecurity/auditing heuristics."
   }
 ];
 
 export function getSourceById(sourceId: string): SourceRegistryEntry | undefined {
-  return sourceRegistry.find(s => s.sourceId === sourceId);
+  return sourceRegistry.find(s => s.id === sourceId || s.sourceId === sourceId);
 }

@@ -103,17 +103,93 @@ export default function EvidenceDrawer() {
         whatItDoesNotProve = card.whatItDoesNotProve;
         unknownsList = card.unknowns;
         sourceIds = card.sourceIds;
-        
+
+        const defaultDisclaimer = "This does NOT prove the exact real-time physical server route used for your specific request. AI providers do not expose internal network worker topology; this models your potential jurisdictional exposure based on official subprocessor agreements and cloud configurations.";
+
+        // Dynamic 3-layer selector based on edge properties
         if (providerId === 'gemini') {
-          explanation = `This transit route represents the jurisdictional path from India to the Google Gemini API gateway. According to Google's terms of service, unpaid Gemini API prompts are routed through global edge nodes and may be analyzed by human reviewers. Sensitive telemetry and user prompt inputs are processed under Google's cloud governance framework, with data residency locked to regional zones only if specifically configured.`;
+          if (activeEdgeId.from === 'dns' && activeEdgeId.to === 'gateway') {
+            title = "India (User) → Singapore Gateway";
+            category = "verified";
+            confidence = 90;
+            explanation = "Verified network endpoint handshake resolving to Google's Singapore edge gateway via DNS resolution.";
+            whatItProves = "Proves network handshake resolved to an official public provider gate or edge proxy endpoint.";
+            whatItDoesNotProve = defaultDisclaimer;
+          } else if (activeEdgeId.from === 'gateway' && activeEdgeId.to === 'vertex') {
+            title = "Singapore Gateway → Vertex AI Core (US)";
+            category = "disclosed";
+            confidence = 80;
+            explanation = "Google Vertex AI compute infrastructure routing. Unpaid Gemini API prompts are routed through global edge nodes and processed under Google's cloud governance framework.";
+            whatItProves = "Proves the provider's official subprocessor lists or data privacy addendums authorize compute processing in this jurisdiction.";
+            whatItDoesNotProve = defaultDisclaimer;
+          } else if (activeEdgeId.from === 'vertex' && activeEdgeId.to === 'storage') {
+            title = "Vertex AI Core → US East (Storage/Backup)";
+            category = "unknown";
+            confidence = 20;
+            explanation = "Internal storage failover or backup route. Exact destination cannot be verified externally.";
+            whatItProves = "Represents an unobservable processing segment inside the provider's private network topology.";
+            whatItDoesNotProve = defaultDisclaimer;
+          }
         } else if (providerId === 'openai') {
-          explanation = `This transit route traces the data flow from India to OpenAI API compute clusters (typically routed to US-based server zones). OpenAI utilizes global subprocessors, including Microsoft Azure infrastructure and scale partners, to process token requests. Standard API prompts do not undergo human review for model training, but metadata logs are retained for 30 days under OpenAI security compliance policies.`;
+          if (activeEdgeId.from === 'user' && activeEdgeId.to === 'cloudflare') {
+            title = "India (User) → Cloudflare CDN Node";
+            category = "verified";
+            confidence = 95;
+            explanation = "Verified request termination at Cloudflare edge proxy node within India.";
+            whatItProves = "Proves network handshake resolved to an official public provider gate or edge proxy endpoint.";
+            whatItDoesNotProve = defaultDisclaimer;
+          } else if (activeEdgeId.from === 'cloudflare' && activeEdgeId.to === 'azure-gateway') {
+            title = "Cloudflare CDN → Azure Gateway (Singapore)";
+            category = "verified";
+            confidence = 90;
+            explanation = "Request proxying to Microsoft Azure's Singapore gateway verified via endpoint response headers.";
+            whatItProves = "Proves network handshake resolved to an official public provider gate or edge proxy endpoint.";
+            whatItDoesNotProve = defaultDisclaimer;
+          } else if (activeEdgeId.from === 'azure-gateway' && activeEdgeId.to === 'openai-core') {
+            title = "Azure Gateway → OpenAI US West Backend";
+            category = "disclosed";
+            confidence = 85;
+            explanation = "OpenAI's primary US West backend node processing. OpenAI utilizes Microsoft Azure infrastructure and scale partners to process token requests.";
+            whatItProves = "Proves the provider's official subprocessor lists or data privacy addendums authorize compute processing in this jurisdiction.";
+            whatItDoesNotProve = defaultDisclaimer;
+          } else if (activeEdgeId.from === 'openai-core' && activeEdgeId.to === 'human-review') {
+            title = "OpenAI Core → Ireland EU (Inferred Review)";
+            category = "inferred";
+            confidence = 45;
+            explanation = "Potential routing to EU-based scale partners or human annotators for content auditing.";
+            whatItProves = "Represents an unobservable processing segment inside the provider's private network topology.";
+            whatItDoesNotProve = defaultDisclaimer;
+          }
         } else if (providerId === 'claude') {
-          explanation = `This transit route maps prompt telemetry to Anthropic Claude server instances (hosted via AWS US regions). Under Anthropic commercial developer terms, conversation inputs are not retained by default for training purposes. Compute infrastructure is subject to Anthropic's trust-center DPA guidelines and verified subprocessors list, maintaining automated zero-retention policies for standard API endpoints.`;
+          if (activeEdgeId.from === 'user' && activeEdgeId.to === 'cloudflare-claude') {
+            title = "India (User) → Cloudflare Proxy Node";
+            category = "verified";
+            confidence = 95;
+            explanation = "Verified request routing through local Cloudflare CDN endpoint in India.";
+            whatItProves = "Proves network handshake resolved to an official public provider gate or edge proxy endpoint.";
+            whatItDoesNotProve = defaultDisclaimer;
+          } else if (activeEdgeId.from === 'cloudflare-claude' && activeEdgeId.to === 'aws-endpoint') {
+            title = "Cloudflare Proxy → AWS SG Endpoint";
+            category = "verified";
+            confidence = 90;
+            explanation = "Proxy transit to Anthropic AWS Singapore endpoint node.";
+            whatItProves = "Proves network handshake resolved to an official public provider gate or edge proxy endpoint.";
+            whatItDoesNotProve = defaultDisclaimer;
+          } else if (activeEdgeId.from === 'aws-endpoint' && activeEdgeId.to === 'anthropic-aws') {
+            title = "AWS SG Endpoint → US East Compute";
+            category = "disclosed";
+            confidence = 85;
+            explanation = "AWS US East region compute nodes processing API requests under Anthropic commercial terms. Data is not retained by default for training.";
+            whatItProves = "Proves the provider's official subprocessor lists or data privacy addendums authorize compute processing in this jurisdiction.";
+            whatItDoesNotProve = defaultDisclaimer;
+          }
         } else if (providerId === 'local') {
-          explanation = `This closed-loop route retains all data within local boundaries. Prompts are processed locally on-premise or inside local sovereign compute nodes using open weights models. Zero external API calls are dispatched, eliminating subprocessor leak vectors and ensuring complete data containment and compliance.`;
-        } else {
-          explanation = `Visualizing verified connection flow from ${card.from} to ${card.to}.`;
+          title = "India (User) → Local Sovereign Node";
+          category = "verified";
+          confidence = 95;
+          explanation = "This closed-loop route retains all data within local boundaries. Prompts are processed locally on-premise using open weights models.";
+          whatItProves = "Proves prompt was processed locally within on-premise hardware loopback interfaces with zero external routing.";
+          whatItDoesNotProve = "This does NOT prove that secondary dependencies (like plugins or live search tools) didn't execute remote lookups.";
         }
       }
     } else {
@@ -125,7 +201,7 @@ export default function EvidenceDrawer() {
       subTitle = `Data Routing Conduit [EVIDENCE MISSING]`;
       explanation = `LeakMap detected a transit hop from ${activeEdgeId.from} to ${activeEdgeId.to}, but has no official disclosure, registry log, or policy mapping to prove it.`;
       whatItProves = `No verifiable proof exists for this route.`;
-      whatItDoesNotProve = `This path cannot be verified as secure, compliant, or active.`;
+      whatItDoesNotProve = `This does NOT prove the exact real-time physical server route used for your specific request. AI providers do not expose internal network worker topology; this models your potential jurisdictional exposure based on official subprocessor agreements and cloud configurations.`;
       unknownsList = [`Exact route validity`, `Legal jurisdiction`, `Provider compliance posture`];
     }
   }

@@ -87,6 +87,54 @@ export const rules: Rule[] = [
     effect: "Subtract confidence weight from internal route claims; show unknown route segments",
     severity: "methodology",
     explanation: "Proprietary networks operate as a black-box. Internal failovers and GPU scheduling cannot be validated by third parties."
+  },
+  {
+    id: "R-201",
+    name: "Verified Endpoint Rule",
+    condition: "Live API call or configured provider endpoint detected",
+    effect: "Render solid route with verified endpoint label",
+    severity: "protective",
+    explanation: "This edge confirms the selected provider endpoint/profile used by LeakMap. It does not confirm hidden internal provider routing."
+  },
+  {
+    id: "R-202",
+    name: "Disclosed Exposure Rule",
+    condition: "Official provider document/source attached",
+    effect: "Render dashed route with disclosed exposure label",
+    severity: "safe",
+    explanation: "This edge is based on public provider disclosures. It indicates possible contractual/policy exposure, not request-specific proof."
+  },
+  {
+    id: "R-203",
+    name: "Unknown Internal Path Rule",
+    condition: "Provider is black-box external AI system",
+    effect: "Always show unknown internal path limitation",
+    severity: "methodology",
+    explanation: "LeakMap cannot externally verify this internal path. This is shown as uncertainty, not fact."
+  },
+  {
+    id: "R-204",
+    name: "Same Provider Base Path Rule",
+    condition: "Same provider + same mode + same endpoint",
+    effect: "Base route may remain same across prompts",
+    severity: "methodology",
+    explanation: "Standard routes to gateways are constant for provider accounts; prompt content overlays reflect local risk ratings."
+  },
+  {
+    id: "R-205",
+    name: "Prompt Sensitivity Overlay Rule",
+    condition: "Prompt contains personal, health, government ID, financial, business confidential, or secret data",
+    effect: "Increase risk overlay and warning intensity",
+    severity: "protective",
+    explanation: "Adds dynamic visual glow highlight to path segments corresponding to prompt analysis sensitivity."
+  },
+  {
+    id: "R-206",
+    name: "Evidence Missing Cap",
+    condition: "No evidence source or evidenceId attached",
+    effect: "Max confidence 30%, mark route unknown",
+    severity: "methodology",
+    explanation: "Routes lacking backing data are capped in confidence to prevent false visual representations."
   }
 ];
 
@@ -117,7 +165,7 @@ export function evaluateRules(
 
   // R-104 Business Confidential
   const confidentialTerms = ["startup plan", "financial forecast", "internal strategy", "api key", "secret", "confidential", "budget", "salary", "acquisition", "merge"];
-  const hasConfidentialTerm = confidentialTerms.some(t => lowerPrompt.includes(t)) || detectedEntities.includes("API_KEY") || detectedEntities.includes("SECRET");
+  const hasConfidentialTerm = confidentialTerms.some(t => lowerPrompt.includes(t)) || detectedEntities.includes("API_KEY") || detectedEntities.includes("SECRET") || detectedEntities.includes("BUSINESS_CONFIDENTIAL");
   if (hasConfidentialTerm) triggered.push("R-104");
 
   // R-105 External Provider Exposure
@@ -138,6 +186,19 @@ export function evaluateRules(
   // R-110 Unknown Routing Penalty
   if (providerId !== "local") {
     triggered.push("R-110");
+  }
+
+  // New R-200 series rule evaluations
+  if (providerId !== "local") {
+    triggered.push("R-201");
+    triggered.push("R-202");
+    triggered.push("R-203");
+    triggered.push("R-204");
+  }
+
+  // R-205 Prompt Sensitivity Overlay Rule
+  if (hasHealthTerm || hasGovTerm || hasEmail || hasPhone || hasConfidentialTerm) {
+    triggered.push("R-205");
   }
 
   return triggered;

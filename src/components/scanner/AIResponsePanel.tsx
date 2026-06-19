@@ -98,6 +98,35 @@ export default function AIResponsePanel() {
         </pre>
       </div>
 
+      {/* Structured Telemetry Metadata */}
+      <div className="px-5 py-4 border-t border-black bg-[#F8F7F2] text-[10.5px] font-mono text-black leading-relaxed flex flex-col gap-3">
+        <div className="border-b border-black/10 pb-1.5 flex items-center justify-between">
+          <span className="font-black uppercase tracking-wider text-[9px] text-[#77776F]">Exposure Model Telemetry</span>
+          <span className="font-extrabold text-[9px] text-[#3B00FF] uppercase bg-[#3B00FF]/5 border border-[#3B00FF]/15 px-2 py-0.5">
+            MODEL ID: {activeResult.id.substring(0, 10)}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10.5px]">
+          <div>
+            <span className="font-extrabold text-[#77776F] uppercase block text-[8px] tracking-wider mb-0.5">Base Pathway</span>
+            <p className="font-bold uppercase leading-tight text-black">{getBasePathwayText(activeResult.providerId)}</p>
+          </div>
+          <div>
+            <span className="font-extrabold text-[#77776F] uppercase block text-[8px] tracking-wider mb-0.5">Prompt Risk Overlay</span>
+            <p className="font-bold uppercase leading-tight text-black">{getRiskOverlayText(activeResult.sensitivityLevel)}</p>
+          </div>
+          <div>
+            <span className="font-extrabold text-[#77776F] uppercase block text-[8px] tracking-wider mb-0.5">Trace Limitation</span>
+            <p className="font-semibold text-black uppercase leading-tight">Private internal provider routing remains unobservable. This models jurisdictional exposure.</p>
+          </div>
+          <div>
+            <span className="font-extrabold text-[#77776F] uppercase block text-[8px] tracking-wider mb-0.5">Recommendation</span>
+            <p className="font-semibold text-black uppercase leading-tight">{getRecommendationText(activeResult.sensitivityLevel)}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Footer warning */}
       {activeResult.mode !== 'local' && (
         <div className="px-5 py-3 border-t border-black bg-[#FDFBF7] text-[10px] font-mono text-brutalist-text leading-relaxed flex flex-col gap-1">
@@ -113,4 +142,50 @@ export default function AIResponsePanel() {
     </div>
   );
 }
+
+const getBasePathwayText = (pId: string) => {
+  switch (pId) {
+    case 'gemini':
+      return "India → Singapore Gateway (Verified) → Vertex AI Core (Disclosed) → US East Storage (Unknown)";
+    case 'openai':
+      return "India → Cloudflare CDN (Verified) → Azure SG Gateway (Verified) → OpenAI US West Backend (Disclosed) → Ireland EU Review Node (Inferred)";
+    case 'claude':
+      return "India → Cloudflare Proxy (Verified) → AWS SG Endpoint (Verified) → AWS US East Compute (Disclosed)";
+    case 'local':
+    default:
+      return "India → Localhost Sovereign Node (Verified)";
+  }
+};
+
+const getRiskOverlayText = (level: string) => {
+  switch (level) {
+    case 'Public':
+      return "Low Risk (Cyan) - General academic/public query";
+    case 'Personal':
+      return "Medium Risk (Amber) - Personal PII identifiers detected";
+    case 'Confidential':
+    case 'Sensitive':
+      return "High Risk (Red-Amber) - Business cash flow/financial secrets detected";
+    case 'Critical':
+      return "Critical Risk (Pulsing Red) - Aadhaar/Health identifiers detected";
+    default:
+      return "Low Risk (Cyan)";
+  }
+};
+
+const getRecommendationText = (level: string) => {
+  switch (level) {
+    case 'Public':
+      return "Route to standard public or enterprise cloud models. Geopolitical leak risk is low.";
+    case 'Personal':
+      return "Enable pre-anonymization redaction toggle to filter personal PII before API transit.";
+    case 'Confidential':
+    case 'Sensitive':
+      return "Filter business secrets / redact API keys or run locally on sovereign nodes.";
+    case 'Critical':
+      return "Must execute locally on-premise. Aadhaar/Health data must never enter public cloud APIs.";
+    default:
+      return "Safe to route.";
+  }
+};
 
