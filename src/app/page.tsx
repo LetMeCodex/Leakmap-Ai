@@ -131,9 +131,18 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
 
-        {/* Right Column: 3D Globe inside a brutalist bordered grid (6/12 grid) */}
-        <div className="lg:col-span-6 relative w-full aspect-square border-2 border-black bg-white shadow-[6px_6px_0px_#050505] flex items-center justify-center overflow-hidden">
+        {/* Right Column: 3D Globe inside a refined brutalist frame (6/12 grid) */}
+        <div className="lg:col-span-6 relative w-full aspect-square border-[1.5px] border-black bg-[#F4F2EC] shadow-[8px_8px_0px_#050505] flex items-center justify-center overflow-hidden">
           
+          {/* Inner hairline border */}
+          <div className="absolute inset-2 border border-black/10 pointer-events-none z-20" />
+
+          {/* Corner calibration marks */}
+          <div className="absolute top-2 left-2 w-3 h-3 border-t border-l border-black/40 pointer-events-none z-20" />
+          <div className="absolute top-2 right-2 w-3 h-3 border-t border-r border-black/40 pointer-events-none z-20" />
+          <div className="absolute bottom-2 left-2 w-3 h-3 border-b border-l border-black/40 pointer-events-none z-20" />
+          <div className="absolute bottom-2 right-2 w-3 h-3 border-b border-r border-black/40 pointer-events-none z-20" />
+
           {/* Grid overlay for editorial look */}
           <div className="absolute inset-0 grid grid-cols-6 grid-rows-6 pointer-events-none opacity-5">
             {Array.from({ length: 36 }).map((_, i) => (
@@ -145,32 +154,18 @@ export default function LandingPage() {
             <JurisdictionGlobe variant="hero" />
           </div>
 
-          {/* Floating UI Badges overlays */}
-          {badgeLabels.map((badge, idx) => (
-            <motion.div
-              key={idx}
-              className={`absolute hidden md:flex items-center gap-1.5 px-2.5 py-0.5 border border-black text-[9px] font-mono uppercase tracking-wider z-20 pointer-events-none font-bold shadow-[2px_2px_0px_#050505] ${badge.color}`}
-              style={{
-                top: badge.top,
-                bottom: badge.bottom,
-                left: badge.left,
-                right: badge.right,
-              }}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.5 + idx * 0.1, duration: 0.3 }}
-            >
-              <span className="w-1.5 h-1.5 bg-black inline-block shrink-0" />
-              {badge.label}
-            </motion.div>
-          ))}
-
-          {/* Decorative corners / labels */}
-          <div className="absolute top-2 left-2 font-mono text-[9px] text-brutalist-text font-bold">
-            LAT: 47.3769 / LON: 8.5417
+          {/* Corner text overlays (tiny mono labels) */}
+          <div className="absolute top-3.5 left-3.5 font-mono text-[8px] text-black/60 pointer-events-none z-20 leading-none">
+            LMX_GLOBE_RENDER / EXPOSURE MODEL
           </div>
-          <div className="absolute bottom-2 right-2 font-mono text-[9px] text-brutalist-text font-bold">
-            SWISS_SOVEREIGN_NODE_A
+          <div className="absolute top-3.5 right-3.5 font-mono text-[8px] text-black/60 pointer-events-none z-20 leading-none text-right">
+            TRACE TYPE: EXPOSURE MODEL
+          </div>
+          <div className="absolute bottom-3.5 left-3.5 font-mono text-[8px] text-black/60 pointer-events-none z-20 leading-none">
+            NOT A PHYSICAL PACKET TRACE
+          </div>
+          <div className="absolute bottom-3.5 right-3.5 font-mono text-[8px] text-black/60 pointer-events-none z-20 leading-none text-right">
+            EVIDENCE-LINKED ROUTES
           </div>
         </div>
       </div>

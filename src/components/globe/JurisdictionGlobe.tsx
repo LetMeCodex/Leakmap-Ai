@@ -55,6 +55,7 @@ export default function JurisdictionGlobe({
   const pulseTime = useRef(0);
   const flowTime = useRef(0);
   const scanAnimationProgress = useRef(1.0); // starts fully drawn
+  const timelineTime = useRef(0); // tracks frames for sequential staged animation
 
   // Projection angles LERP trackers
   const rotationRef = useRef<[number, number]>([-78.9629, -20.5937]); // centered on India initially
@@ -105,6 +106,7 @@ export default function JurisdictionGlobe({
     // Center camera on India [78.96N, 20.59E] (so rotation is [-78.96, -20.59])
     targetRotationRef.current = [-78.9629, -20.5937];
     scanAnimationProgress.current = 0.0; // trigger draw animation
+    timelineTime.current = 0; // reset timeline sequence
   }, [activeProviderId, storeActiveResult]);
 
   // Dynamic route configurations
@@ -363,6 +365,95 @@ export default function JurisdictionGlobe({
     }
   };
 
+  // Canvas Node Labels drawer helper
+  const drawLabel = (
+    ctx: CanvasRenderingContext2D,
+    title: string,
+    x: number,
+    y: number,
+    type: string,
+    subtitle: string,
+    isActive: boolean,
+    dx: number,
+    dy: number
+  ) => {
+    const lx = x + dx;
+    const ly = y + dy;
+
+    // Draw leader line
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(lx, ly);
+    ctx.strokeStyle = 'rgba(5, 5, 5, 0.35)';
+    ctx.lineWidth = 0.7;
+    ctx.stroke();
+
+    // Draw little node tick dot
+    ctx.beginPath();
+    ctx.arc(x, y, 1.5, 0, 2 * Math.PI);
+    ctx.fillStyle = '#050505';
+    ctx.fill();
+
+    // Color indicators
+    let color = '#00AEEF';
+    if (type === 'verified') color = '#00AEEF';
+    else if (type === 'disclosed') color = '#3B00FF';
+    else if (type === 'inferred') color = '#DFA100';
+    else if (type === 'local') color = '#00B873';
+    else if (type === 'unknown') color = '#EF2B2B';
+
+    ctx.font = 'bold 7px monospace';
+    const paddingX = 4;
+    const paddingY = 3.5;
+    const lineSpacing = 8.5;
+
+    const textLines = [
+      `■ ${title}`,
+      subtitle
+    ];
+
+    let maxWidth = 0;
+    textLines.forEach(line => {
+      const w = ctx.measureText(line).width;
+      if (w > maxWidth) maxWidth = w;
+    });
+
+    const boxW = maxWidth + paddingX * 2 + 2;
+    const boxH = textLines.length * lineSpacing + paddingY;
+
+    ctx.save();
+    
+    // Draw offset shadow if active/hovered
+    if (isActive) {
+      ctx.fillStyle = '#050505';
+      ctx.fillRect(lx - boxW / 2 + 2, ly - boxH / 2 + 2, boxW, boxH);
+    }
+
+    ctx.fillStyle = '#F8F7F2';
+    ctx.strokeStyle = '#050505';
+    ctx.lineWidth = 1.0;
+    ctx.fillRect(lx - boxW / 2, ly - boxH / 2, boxW, boxH);
+    ctx.strokeRect(lx - boxW / 2, ly - boxH / 2, boxW, boxH);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    textLines.forEach((line, idx) => {
+      const textY = ly - boxH / 2 + paddingY + idx * lineSpacing;
+      if (line.startsWith('■')) {
+        ctx.fillStyle = color;
+        ctx.fillText('■', lx - boxW / 2 + paddingX, textY);
+        ctx.fillStyle = '#050505';
+        ctx.fillText(line.substring(2), lx - boxW / 2 + paddingX + 8, textY);
+      } else {
+        ctx.fillStyle = '#77776F';
+        ctx.fillText(line, lx - boxW / 2 + paddingX, textY);
+      }
+    });
+
+    ctx.restore();
+  };
+
   // Rendering animation loop
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -375,6 +466,7 @@ export default function JurisdictionGlobe({
       // Increments counters
       pulseTime.current += 1.0;
       flowTime.current += 1.0;
+      timelineTime.current += 1.0; // increments on each frame for stages sequence
 
       if (scanAnimationProgress.current < 1.0) {
         scanAnimationProgress.current += 0.015; // smooth draw speed
@@ -382,9 +474,8 @@ export default function JurisdictionGlobe({
         scanAnimationProgress.current = 1.0;
       }
 
-      // Smooth camera interpolation (LERP)
+      // Smooth camera LERP
       if (!isDraggingRef.current) {
-        // Slow auto rotation (only longitude target)
         targetRotationRef.current[0] += 0.05;
       }
       rotationRef.current[0] += (targetRotationRef.current[0] - rotationRef.current[0]) * 0.15;
@@ -396,44 +487,56 @@ export default function JurisdictionGlobe({
       const size = Math.min(dimensions.width, dimensions.height);
       ctx.clearRect(0, 0, size, size);
 
-      const r = size * 0.35; // Occupies exactly 70% of panel height
+      const r = size * 0.33; // Occupies 66% of panel height to give room for outer compass dials
       projection.current.scale(r).translate([size / 2, size / 2]);
       const pathGenerator = d3.geoPath(projection.current, ctx);
 
-      // 1. Globe Base Background Fill
+      // 1. Globe Ambient Shadow (Soft blend background)
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.06)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 10;
       ctx.beginPath();
-      ctx.arc(size / 2, size / 2, r, 0, 2 * Math.PI);
+      ctx.arc(size / 2, size / 2, r - 2, 0, 2 * Math.PI);
       ctx.fillStyle = '#F4F2EC';
       ctx.fill();
+      ctx.restore();
 
-      // 2. Render Back Hemisphere (Transparent Globe)
+      // 2. Globe Ocean base with translucency
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, r, 0, 2 * Math.PI);
+      ctx.fillStyle = 'rgba(244, 242, 236, 0.78)';
+      ctx.fill();
+
+      // 3. Render Back Hemisphere (Transparent Globe continent backings)
       if (worldData) {
         projection.current.clipAngle(180);
 
         // Back graticule lines
         ctx.beginPath();
         pathGenerator(graticule.current());
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.03)';
+        ctx.strokeStyle = 'rgba(5, 5, 5, 0.02)';
         ctx.lineWidth = 0.5;
         ctx.stroke();
 
-        // Back countries
+        // Back countries (translucent grey-olive)
         const countries = (topojson.feature(worldData, worldData.objects.countries) as any).features;
         ctx.beginPath();
         countries.forEach((d: any) => {
           pathGenerator(d);
         });
-        ctx.fillStyle = '#DADAC4';
+        ctx.fillStyle = 'rgba(120, 120, 105, 0.18)';
         ctx.fill();
       }
 
-      // 3. Render Front Hemisphere
+      // 4. Render Front Hemisphere
       projection.current.clipAngle(90);
 
       // Front graticule lines
       ctx.beginPath();
       pathGenerator(graticule.current());
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+      ctx.strokeStyle = 'rgba(5, 5, 5, 0.06)';
       ctx.lineWidth = 0.5;
       ctx.stroke();
 
@@ -448,44 +551,168 @@ export default function JurisdictionGlobe({
 
           const isCountryActive = activeCountryIds.includes(Number(d.id));
           if (isCountryActive) {
-            ctx.fillStyle = 'rgba(59, 0, 255, 0.25)'; // Glowing blue tint
+            ctx.fillStyle = 'rgba(59, 0, 255, 0.08)'; // Soft electric blue overlay
           } else {
-            ctx.fillStyle = '#737368'; // Brutalist base country color
+            ctx.fillStyle = '#6F7066'; // Muted olive-grey continents front
           }
           ctx.fill();
 
-          if (isCountryActive) {
-            ctx.strokeStyle = 'rgba(59, 0, 255, 0.5)';
-            ctx.lineWidth = 0.8;
-            ctx.stroke();
-          } else {
-            ctx.strokeStyle = '#F4F2EC';
-            ctx.lineWidth = 0.25;
-            ctx.stroke();
-          }
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)'; // High-detail white country borders
+          ctx.lineWidth = 0.55;
+          ctx.stroke();
         });
       }
 
       // Globe Outline border
       ctx.beginPath();
       ctx.arc(size / 2, size / 2, r, 0, 2 * Math.PI);
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(5, 5, 5, 0.20)';
+      ctx.lineWidth = 1.0;
       ctx.stroke();
 
-      // 4. Render Route Arcs
+      // 5. Technical Dial Compass Rings (Scientific Instrument styling)
+      ctx.save();
+      ctx.strokeStyle = 'rgba(5, 5, 5, 0.07)';
+      ctx.lineWidth = 0.7;
+      // Inner Dial
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, r + 6, 0, 2 * Math.PI);
+      ctx.stroke();
+      
+      // Outer Dial
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, r + 12, 0, 2 * Math.PI);
+      ctx.stroke();
+
+      // Dial Ticks
+      for (let angle = 0; angle < 360; angle += 15) {
+        const rad = angle * Math.PI / 180;
+        const x1 = size / 2 + (r + 6) * Math.cos(rad);
+        const y1 = size / 2 + (r + 6) * Math.sin(rad);
+        const x2 = size / 2 + (r + (angle % 90 === 0 ? 14 : 10)) * Math.cos(rad);
+        const y2 = size / 2 + (r + (angle % 90 === 0 ? 14 : 10)) * Math.sin(rad);
+        
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = angle % 90 === 0 ? 'rgba(5, 5, 5, 0.20)' : 'rgba(5, 5, 5, 0.07)';
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 6. Sweeping loop-based Scanline Y
+      const scanlineY = (pulseTime.current % 360) / 360 * (r * 2) + (size / 2 - r);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(59, 0, 255, 0.12)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, r, 0, 2 * Math.PI);
+      ctx.clip();
+      ctx.moveTo(size / 2 - r, scanlineY);
+      ctx.lineTo(size / 2 + r, scanlineY);
+      ctx.stroke();
+      ctx.restore();
+
+      // 7. Elegant India Origin Marker & Pulsing concentric rings
+      const indiaCoords: [number, number] = [78.9629, 20.5937];
+      if (isVisible(indiaCoords, size)) {
+        const pos = projection.current(indiaCoords);
+        if (pos) {
+          const [x, y] = pos;
+
+          // Origin scan halo
+          const scanRadius = 13 + Math.sin(pulseTime.current * 0.05) * 3;
+          const scanGradient = ctx.createRadialGradient(x, y, 2, x, y, scanRadius);
+          scanGradient.addColorStop(0, 'rgba(59, 0, 255, 0.14)');
+          scanGradient.addColorStop(1, 'rgba(59, 0, 255, 0)');
+          ctx.beginPath();
+          ctx.arc(x, y, scanRadius, 0, 2 * Math.PI);
+          ctx.fillStyle = scanGradient;
+          ctx.fill();
+
+          // Concentric pulses
+          for (let i = 0; i < 2; i++) {
+            const delay = i * 25;
+            const t = (pulseTime.current + delay) % 50;
+            const ringRadius = 4 + t * 0.25;
+            const ringOpacity = (1 - t / 50) * 0.35;
+            ctx.beginPath();
+            ctx.arc(x, y, ringRadius, 0, 2 * Math.PI);
+            ctx.strokeStyle = `rgba(59, 0, 255, ${ringOpacity})`;
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+
+          // Center marker
+          ctx.beginPath();
+          ctx.arc(x, y, 3.8, 0, 2 * Math.PI);
+          ctx.fillStyle = '#3B00FF';
+          ctx.fill();
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 1.0;
+          ctx.stroke();
+        }
+      }
+
+      // 8. Passport Stamp near India (Phase 1+)
+      const frame = timelineTime.current;
+      if (frame > 20 && isVisible([79.5, 23.0], size)) {
+        const stampPos = projection.current([79.5, 23.0]);
+        if (stampPos) {
+          const [sx, sy] = stampPos;
+          const stampAge = Math.min(30, frame - 20);
+          const stampOpacity = stampAge / 30 * 0.55;
+          
+          ctx.save();
+          ctx.globalAlpha = stampOpacity;
+          ctx.strokeStyle = 'rgba(59, 0, 255, 0.4)';
+          ctx.lineWidth = 0.8;
+          ctx.setLineDash([2, 1]);
+          ctx.strokeRect(sx - 10, sy - 10, 20, 20);
+          ctx.fillStyle = 'rgba(59, 0, 255, 0.05)';
+          ctx.fillRect(sx - 10, sy - 10, 20, 20);
+          ctx.fillStyle = 'rgba(59, 0, 255, 0.7)';
+          ctx.font = 'bold 5px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('AIDP', sx, sy);
+          ctx.restore();
+        }
+      }
+
+      // 9. Draw Upgraded Geopolitical Routes (Sequential staged drawing animation)
       const routes = getProviderRoutes(activeProviderId);
-      const scanProgress = scanAnimationProgress.current;
 
       routes.forEach((route) => {
         const start = route.from.coords;
         const end = route.to.coords;
-
         const interpolator = d3.geoInterpolate(start, end);
+
+        // Determine drawing sequence progress based on timeline time
+        let routeProg = 1.0;
+        let isActivePhase = false;
+        
+        if (route.type === 'verified') {
+          routeProg = Math.max(0, Math.min(1, (frame - 40) / 40));
+          isActivePhase = frame >= 40;
+        } else if (route.type === 'disclosed') {
+          routeProg = Math.max(0, Math.min(1, (frame - 100) / 40));
+          isActivePhase = frame >= 100;
+        } else if (route.type === 'inferred') {
+          routeProg = Math.max(0, Math.min(1, (frame - 150) / 40));
+          isActivePhase = frame >= 150;
+        } else if (route.type === 'unknown') {
+          routeProg = Math.max(0, Math.min(1, (frame - 170) / 45));
+          isActivePhase = frame >= 170;
+        } else if (route.type === 'local') {
+          routeProg = Math.max(0, Math.min(1, (frame - 30) / 30));
+          isActivePhase = frame >= 30;
+        }
+
+        if (!isActivePhase) return;
+
         const points: [number, number][] = [];
         const numSamples = 40;
-        const routeProg = Math.max(0, Math.min(1, scanProgress * 1.4)); // fast draw sweep
-
         for (let i = 0; i <= numSamples; i++) {
           const t = (i / numSamples) * routeProg;
           points.push(interpolator(t));
@@ -496,45 +723,44 @@ export default function JurisdictionGlobe({
           coordinates: points,
         };
 
-        // Draw dynamic prompt sensitivity glow halos if activeResult exists
+        // Draw path line glow if activeResult exists
         if (storeActiveResult) {
           ctx.beginPath();
           pathGenerator(geoLine as any);
           
-          let glowColor = 'rgba(0, 174, 239, 0.15)'; // low risk cyan glow
-          let glowWidth = 8;
+          let glowColor = 'rgba(0, 174, 239, 0.12)';
+          let glowWidth = 6;
 
           const sens = storeActiveResult.sensitivityLevel;
           if (sens === 'Public') {
-            glowColor = 'rgba(0, 174, 239, 0.18)'; 
-            glowWidth = 8;
+            glowColor = 'rgba(0, 174, 239, 0.14)';
+            glowWidth = 6;
           } else if (sens === 'Personal') {
-            glowColor = 'rgba(223, 161, 0, 0.25)'; // medium risk amber glow
-            glowWidth = 12;
+            glowColor = 'rgba(223, 161, 0, 0.20)';
+            glowWidth = 9;
           } else if (sens === 'Confidential' || sens === 'Sensitive') {
-            glowColor = 'rgba(239, 161, 43, 0.25)'; // high risk red/amber glow
-            glowWidth = 14;
+            glowColor = 'rgba(239, 161, 43, 0.20)';
+            glowWidth = 11;
           } else if (sens === 'Critical') {
-            const opacity = 0.15 + Math.sin(pulseTime.current * 0.1) * 0.1;
-            glowColor = `rgba(239, 43, 43, ${opacity})`; // critical pulsing red glow
-            glowWidth = 18;
+            const opacity = 0.12 + Math.sin(pulseTime.current * 0.1) * 0.08;
+            glowColor = `rgba(239, 43, 43, ${opacity})`;
+            glowWidth = 14;
           }
 
           ctx.strokeStyle = glowColor;
           ctx.lineWidth = glowWidth;
           if (route.type === 'disclosed') {
-            ctx.setLineDash([6, 4]);
+            ctx.setLineDash([5, 3]);
           } else if (route.type === 'inferred') {
-            ctx.setLineDash([2, 3]);
+            ctx.setLineDash([2, 2]);
           } else if (route.type === 'unknown') {
-            ctx.setLineDash([2, 4]);
-          } else {
-            ctx.setLineDash([]);
+            ctx.setLineDash([1, 4]);
           }
           ctx.stroke();
           ctx.setLineDash([]);
         }
 
+        // Draw path line core
         ctx.beginPath();
         pathGenerator(geoLine as any);
 
@@ -543,42 +769,46 @@ export default function JurisdictionGlobe({
         else if (route.type === 'disclosed') color = '#3B00FF';
         else if (route.type === 'inferred') color = '#DFA100';
         else if (route.type === 'local') color = '#00B873';
-        else if (route.type === 'unknown') color = '#77776F';
+        else if (route.type === 'unknown') color = '#EF2B2B';
 
         ctx.strokeStyle = color;
         const isRouteHovered = hoveredRoute?.id === route.id;
-        ctx.lineWidth = isRouteHovered ? 3.5 : (route.type === 'local' ? 2.5 : 1.8);
+        ctx.lineWidth = isRouteHovered ? 2.8 : (route.type === 'local' ? 2.0 : 1.4);
 
         if (route.type === 'disclosed') {
-          ctx.setLineDash([6, 4]); // Dashed line
+          ctx.setLineDash([5, 3]);
+          ctx.lineDashOffset = -flowTime.current * 0.18; // Slowly moving dash pattern
         } else if (route.type === 'inferred') {
-          ctx.setLineDash([2, 3]); // Dotted line
+          ctx.setLineDash([2, 2]);
+          const flicker = 0.75 + Math.sin(pulseTime.current * 0.35) * 0.2 * Math.random();
+          ctx.strokeStyle = `rgba(223, 161, 0, ${flicker})`; // Unstable flickering
         } else if (route.type === 'unknown') {
-          ctx.setLineDash([2, 4]); // Dotted line for unknown
+          ctx.setLineDash([1, 4]); // broken dotted fragments
+          ctx.strokeStyle = 'rgba(239, 43, 43, 0.45)';
         } else {
           ctx.setLineDash([]);
         }
 
         ctx.stroke();
-        ctx.setLineDash([]); // Reset
+        ctx.setLineDash([]);
 
-        // Draw "?" marker on unknown routes
-        if (route.type === 'unknown' && scanProgress > 0.8) {
+        // Draw "?" enclosing warning badge mid-way on unknown paths
+        if (route.type === 'unknown' && routeProg > 0.8) {
           const centerCoords = interpolator(0.5);
           if (isVisible(centerCoords, size)) {
             const pos = projection.current(centerCoords);
             if (pos) {
               const [cx, cy] = pos;
               ctx.beginPath();
-              ctx.arc(cx, cy, 6.5, 0, 2 * Math.PI);
+              ctx.arc(cx, cy, 6.0, 0, 2 * Math.PI);
               ctx.fillStyle = '#EF2B2B';
               ctx.fill();
               ctx.strokeStyle = '#FFFFFF';
-              ctx.lineWidth = 1;
+              ctx.lineWidth = 0.8;
               ctx.stroke();
 
               ctx.fillStyle = '#FFFFFF';
-              ctx.font = 'bold 8.5px monospace';
+              ctx.font = 'bold 8px monospace';
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText('?', cx, cy + 0.5);
@@ -586,35 +816,78 @@ export default function JurisdictionGlobe({
           }
         }
 
-        // 5. Draw Flowing Packet Particles
-        if (scanProgress > 0.7) {
+        // Expand Singapore visa stamp ring at Phase 2 when verified path reaches destination
+        if (route.type === 'verified' && routeProg >= 0.95) {
+          const sgCoords: [number, number] = [103.8198, 1.3521];
+          if (isVisible(sgCoords, size)) {
+            const pos = projection.current(sgCoords);
+            if (pos) {
+              const [sx, sy] = pos;
+              const stampAge = (frame - 80) % 80;
+              if (stampAge >= 0) {
+                const stampRadius = 5 + stampAge * 0.18;
+                const stampOpacity = Math.max(0, 1 - stampAge / 80) * 0.55;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(sx, sy, stampRadius, 0, 2 * Math.PI);
+                ctx.strokeStyle = `rgba(0, 174, 239, ${stampOpacity})`;
+                ctx.lineWidth = 0.8;
+                ctx.setLineDash([3, 2]);
+                ctx.stroke();
+                ctx.restore();
+              }
+            }
+          }
+        }
+
+        // Flowing Telemetry Data Capsule
+        if (routeProg > 0.6 && route.type !== 'unknown') {
           const numPackets = route.type === 'local' ? 1 : 2;
           for (let p = 0; p < numPackets; p++) {
-            const packetOffset = p * 0.4;
-            const progress = (flowTime.current * 0.015 + packetOffset) % 1.0;
-            const packetCoords = interpolator(progress);
+            const packetOffset = p * 0.5;
+            const speed = route.type === 'disclosed' ? 0.008 : 0.012;
+            const progress = ((flowTime.current * speed + packetOffset) * routeProg) % 1.0;
+            
+            // Draw trailing particles along D3 path curve
+            const numTrail = 5;
+            for (let i = 0; i < numTrail; i++) {
+              const trailT = progress - i * 0.012;
+              if (trailT < 0) continue;
+              const trailCoords = interpolator(trailT);
+              if (isVisible(trailCoords, size)) {
+                const pos = projection.current(trailCoords);
+                if (pos) {
+                  const [tx, ty] = pos;
+                  const opacity = (1 - i / numTrail) * (route.type === 'inferred' ? (Math.random() > 0.3 ? 0.45 : 0.15) : 0.55);
+                  ctx.beginPath();
+                  ctx.arc(tx, ty, 1.6 - i * 0.25, 0, 2 * Math.PI);
+                  ctx.fillStyle = color;
+                  ctx.save();
+                  ctx.globalAlpha = opacity;
+                  ctx.fill();
+                  ctx.restore();
+                }
+              }
+            }
 
+            // Head Capsule core
+            const packetCoords = interpolator(progress);
             if (isVisible(packetCoords, size)) {
               const pos = projection.current(packetCoords);
               if (pos) {
                 const [px, py] = pos;
-                
-                // Add flickering/fade for inferred or unknown
-                let packetOpacity = 1.0;
-                if (route.type === 'inferred' || route.type === 'unknown') {
-                  packetOpacity = Math.random() > 0.35 ? 0.75 : 0.15; // flickering packets
-                }
-                
-                ctx.beginPath();
-                ctx.arc(px, py, 3.5, 0, 2 * Math.PI);
-                ctx.fillStyle = color;
-                
                 ctx.save();
-                ctx.globalAlpha = packetOpacity;
+                ctx.translate(px, py);
+                
+                // Black core with colored route border
+                ctx.beginPath();
+                ctx.rect(-2.5, -2.5, 5, 5);
+                ctx.fillStyle = '#050505';
                 ctx.fill();
-                ctx.strokeStyle = '#FFFFFF';
-                ctx.lineWidth = 1;
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.0;
                 ctx.stroke();
+                
                 ctx.restore();
               }
             }
@@ -622,34 +895,7 @@ export default function JurisdictionGlobe({
         }
       });
 
-      // 6. Draw India Marker (User Origin Node)
-      const indiaCoords: [number, number] = [78.9629, 20.5937];
-      if (isVisible(indiaCoords, size)) {
-        const pos = projection.current(indiaCoords);
-        if (pos) {
-          const [x, y] = pos;
-
-          // Expanding Pulse Ring
-          const ringRadius = 6 + (pulseTime.current % 50) * 0.4;
-          const ringOpacity = 1 - (pulseTime.current % 50) / 50;
-          ctx.beginPath();
-          ctx.arc(x, y, ringRadius, 0, 2 * Math.PI);
-          ctx.strokeStyle = `rgba(59, 0, 255, ${ringOpacity})`;
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-
-          // Base Center Dot
-          ctx.beginPath();
-          ctx.arc(x, y, 5.5, 0, 2 * Math.PI);
-          ctx.fillStyle = '#3B00FF'; // India marker
-          ctx.fill();
-          ctx.strokeStyle = '#FFFFFF';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-        }
-      }
-
-      // 7. Draw Destination Nodes
+      // 10. Draw Destination Node Centers
       routes.forEach((route) => {
         const destCoords = route.to.coords;
         if (isVisible(destCoords, size) && destCoords.toString() !== indiaCoords.toString()) {
@@ -658,31 +904,112 @@ export default function JurisdictionGlobe({
             const [x, y] = pos;
             const isRouteHovered = hoveredRoute?.id === route.id;
 
-            // Destination center dot (larger if hovered)
             ctx.beginPath();
-            ctx.arc(x, y, isRouteHovered ? 6.5 : 4.5, 0, 2 * Math.PI);
+            ctx.arc(x, y, isRouteHovered ? 5.0 : 3.5, 0, 2 * Math.PI);
             ctx.fillStyle = route.type === 'local' ? '#00B873' : '#050505';
             ctx.fill();
             ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 1.2;
+            ctx.lineWidth = 1.0;
             ctx.stroke();
-
-            // Destination arriving pulse ring
-            if (scanProgress > 0.8 || isRouteHovered) {
-              const speedMultiplier = isRouteHovered ? 1.5 : 1;
-              const destRingRadius = (isRouteHovered ? 6.5 : 4.5) + ((pulseTime.current * speedMultiplier) % 40) * 0.35;
-              const destRingOpacity = 1 - ((pulseTime.current * speedMultiplier) % 40) / 40;
-              ctx.beginPath();
-              ctx.arc(x, y, destRingRadius, 0, 2 * Math.PI);
-              ctx.strokeStyle = route.type === 'local' 
-                ? `rgba(0, 184, 115, ${destRingOpacity})`
-                : (isRouteHovered ? `rgba(59, 0, 255, ${destRingOpacity})` : `rgba(5, 5, 5, ${destRingOpacity})`);
-              ctx.lineWidth = isRouteHovered ? 1.5 : 1.0;
-              ctx.stroke();
-            }
           }
         }
       });
+
+      // 11. Render Canvas Node Labels (Singapore, US Central, US East, India)
+      if (frame > 60) {
+        const labelsToDraw = [
+          {
+            id: 'lbl-india',
+            coords: indiaCoords,
+            type: 'local',
+            title: 'REDACTION ACTIVE',
+            subtitle: 'RISK REDUCED',
+            dx: -45,
+            dy: 30,
+            visible: true
+          },
+          {
+            id: 'lbl-singapore',
+            coords: [103.8198, 1.3521] as [number, number],
+            type: 'verified',
+            title: 'VERIFIED ENDPOINT',
+            subtitle: '90% / 3 SOURCES',
+            dx: 45,
+            dy: -30,
+            visible: activeProviderId !== 'local'
+          },
+          {
+            id: 'lbl-us-central',
+            coords: [-98.3500, 39.5000] as [number, number],
+            type: 'disclosed',
+            title: 'DISCLOSED PROCESSOR',
+            subtitle: '80% / 2 SOURCES',
+            dx: 45,
+            dy: -25,
+            visible: activeProviderId === 'gemini'
+          },
+          {
+            id: 'lbl-us-west',
+            coords: [-122.4194, 37.7749] as [number, number],
+            type: 'disclosed',
+            title: 'DISCLOSED PROCESSOR',
+            subtitle: '85% / 2 SOURCES',
+            dx: 45,
+            dy: -25,
+            visible: activeProviderId === 'openai'
+          },
+          {
+            id: 'lbl-us-east',
+            coords: [-78.0249, 37.9268] as [number, number],
+            type: 'unknown',
+            title: 'DATA RESIDENCY UNKNOWN',
+            subtitle: 'INFERENCE / LIMITATION',
+            dx: 40,
+            dy: 30,
+            visible: activeProviderId === 'gemini' || activeProviderId === 'claude'
+          },
+          {
+            id: 'lbl-ireland',
+            coords: [-8.2439, 53.4129] as [number, number],
+            type: 'inferred',
+            title: 'INFERRED RISK',
+            subtitle: '45% / 1 SOURCE',
+            dx: -45,
+            dy: -20,
+            visible: activeProviderId === 'openai' && (hoveredRoute?.id === 'oa-r4' || frame > 200)
+          }
+        ];
+
+        labelsToDraw.forEach((lbl) => {
+          if (!lbl.visible) return;
+          if (isVisible(lbl.coords, size)) {
+            const pos = projection.current(lbl.coords);
+            if (pos) {
+              const [nx, ny] = pos;
+              
+              const isHovered = hoveredRoute && (
+                (lbl.type === 'verified' && hoveredRoute.type === 'verified') ||
+                (lbl.type === 'disclosed' && hoveredRoute.type === 'disclosed') ||
+                (lbl.type === 'unknown' && hoveredRoute.type === 'unknown') ||
+                (lbl.type === 'inferred' && hoveredRoute.type === 'inferred') ||
+                (lbl.type === 'local' && hoveredRoute.type === 'local')
+              );
+
+              drawLabel(
+                ctx,
+                lbl.title,
+                nx,
+                ny,
+                lbl.type,
+                lbl.subtitle,
+                !!isHovered,
+                lbl.dx,
+                lbl.dy
+              );
+            }
+          }
+        });
+      }
 
       requestRef.current = requestAnimationFrame(animate);
     };
@@ -716,89 +1043,105 @@ export default function JurisdictionGlobe({
       {/* Floating Brutalist Tooltip */}
       {hoveredRoute && (
         <div
-          className="absolute z-30 pointer-events-none p-3.5 bg-[#050505] border-2 border-[#F4F2EC] text-[#F4F2EC] shadow-[4px_4px_0px_#3B00FF] text-left font-mono max-w-[260px] leading-tight select-none animate-fade-in"
-          style={{ left: `${mousePos.x}px`, top: `${mousePos.y}px` }}
+          className="absolute z-30 pointer-events-auto p-3.5 bg-[#050505] border-t-2 border-[#3B00FF] border-x border-b border-[#050505] text-[#F8F7F2] shadow-[6px_6px_0px_rgba(5,5,5,0.15)] text-left font-mono max-w-[245px] leading-tight select-none animate-fade-in"
+          style={{ 
+            left: `${mousePos.x + 15}px`, 
+            top: `${mousePos.y + 15}px` 
+          }}
         >
-          {hoveredRoute.type === 'unknown' ? (
-            <div className="bg-red-600 text-white font-extrabold px-2 py-1 mb-2 text-center border border-white text-[8px] tracking-wider uppercase animate-pulse">
-              ⚠️ EVIDENCE MISSING
-            </div>
-          ) : null}
-          <div className="border-b border-[#F4F2EC] pb-1.5 mb-1.5 font-[800] uppercase tracking-wider text-[10px]">
-            EDGE TYPE: {hoveredRoute.type === 'local' ? 'SOVEREIGN LOCAL' : `${hoveredRoute.type.toUpperCase()} PATH`}
+          <div className="flex justify-between items-start border-b border-[#F8F7F2]/10 pb-1.5 mb-2">
+            <span className="font-black text-[9px] text-[#00AEEF]">
+              ROUTE-{activeProviderId.toUpperCase()}-00{hoveredRoute.id.slice(-1)}
+            </span>
+            <svg className="w-3 h-3 fill-current text-[#F8F7F2]/60" viewBox="0 0 24 24">
+              <path d="M3 3h8v8H3zm2 2v4h4V5zm8-2h8v8h-8zm2 2v4h4V5zM3 13h8v8H3zm2 2v4h4v-4zm13-2h3v2h-3zm-2 2h2v3h-2zm4 2h2v3h-2zm-2 2h2v2h-2zm-2-4h2v2h-2zm6-2h2v2h-2zm-6-2h2v2h-2z"/>
+            </svg>
           </div>
-          <div className="flex flex-col gap-1 text-[9px] font-bold">
-            <div>CONFIDENCE: {hoveredRoute.confidence}%</div>
-            <div className="uppercase">SOURCE: {hoveredRoute.source}</div>
-            <div className="text-[7.5px] text-[#9A9A91] border-t border-[#3A3A36] pt-1.5 mt-1 leading-relaxed font-semibold uppercase">
-              NOTE: NOT PROOF OF INTERNAL PROCESSING LOCATION
+          
+          <div className="flex flex-col gap-1.5 text-[8.5px] leading-normal font-semibold">
+            <div>
+              <span className="text-[#77776F]">TRACE TYPE: </span>
+              <span className="text-[#F8F7F2]">{hoveredRoute.source}</span>
             </div>
+            <div>
+              <span className="text-[#77776F]">CONFIDENCE: </span>
+              <span className="text-[#F8F7F2]">{hoveredRoute.confidence}%</span>
+            </div>
+            <div>
+              <span className="text-[#77776F]">SOURCES: </span>
+              <span className="text-[#F8F7F2]">03</span>
+            </div>
+            <div>
+              <span className="text-[#77776F]">CLAIM: </span>
+              <span className="text-[#F8F7F2]">
+                {hoveredRoute.type === 'verified' ? 'PROVIDER ENDPOINT MATCHED' : (hoveredRoute.type === 'disclosed' ? 'SUBPROCESSOR PIPELINE MATCHED' : 'JURISDICTION EXPOSURE INFERRED')}
+              </span>
+            </div>
+            <div className="border-t border-[#F8F7F2]/10 pt-1.5 mt-0.5 text-[7px] text-[#9A9A91] uppercase">
+              LIMITATION: NOT A PHYSICAL SERVER PATH
+            </div>
+            
+            <button 
+              onClick={() => handleCanvasClick()}
+              className="mt-1.5 w-full bg-[#3B00FF] text-white hover:bg-blue-700 text-center py-1 text-[7.5px] uppercase font-bold tracking-wider transition-all pointer-events-auto cursor-pointer"
+            >
+              OPEN EVIDENCE ↗
+            </button>
           </div>
         </div>
       )}
 
-      {/* Top Left Telemetry Overlay */}
-      <div className="absolute top-4 left-4 pointer-events-none flex flex-col gap-1 text-[9px] font-mono text-[#77776F] bg-white px-3 py-2.5 border border-[#050505] shadow-[2px_2px_0px_#050505]">
-        <p className="text-[#050505] font-extrabold uppercase tracking-wider">Geopolitical Node Array</p>
-        <p>Origin Vector: IN [20.59N, 78.96E]</p>
-        <p>Active Target: {activeProviderId.toUpperCase()}</p>
-        <p className="text-[#00B873] font-bold mt-0.5">● Routing scanner connected</p>
-      </div>
-
-      {/* Top Right Mini Badge */}
-      <div className="absolute top-4 right-4 pointer-events-none hidden sm:flex flex-col items-end text-[9px] font-mono text-[#77776F] bg-white px-3 py-2 border border-[#050505] shadow-[2px_2px_0px_#050505]">
-        <p className="text-[#77776F] uppercase font-bold tracking-wider text-[8px]">Trace Confidence</p>
-        <p className="text-[#3B00FF] font-extrabold">90% VERIFIED ENDPOINT</p>
-      </div>
-
-      {/* Legend overlay */}
-      <div className="absolute bottom-4 left-4 z-20 hidden sm:flex flex-col gap-2 text-[9px] font-mono text-[#050505] bg-white p-3.5 border border-[#050505] shadow-[3px_3px_0px_#050505] max-w-[240px]">
-        <p className="font-extrabold uppercase border-b border-[#050505] pb-1 tracking-wider text-[9px] text-[#77776F]">Path Evidence Levels</p>
-        
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[#00AEEF] font-extrabold text-[12px]">━━</span>
-            <span className="font-extrabold text-black">VERIFIED ENDPOINT</span>
-          </div>
-          <span className="text-[7.5px] text-[#77776F] uppercase leading-tight pl-6 block">Runtime/provider endpoint evidence</span>
-        </div>
-
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[#3B00FF] font-extrabold text-[12px]">- -</span>
-            <span className="font-extrabold text-black">DISCLOSED EXPOSURE</span>
-          </div>
-          <span className="text-[7.5px] text-[#77776F] uppercase leading-tight pl-6 block">Official provider policy/subprocessor evidence</span>
-        </div>
-
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[#DFA100] font-extrabold text-[12px]">···</span>
-            <span className="font-extrabold text-black">INFERRED RISK</span>
-          </div>
-          <span className="text-[7.5px] text-[#77776F] uppercase leading-tight pl-6 block">Estimated uncertainty from routing/policy</span>
-        </div>
-
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[#77776F] font-extrabold text-[12px]">???</span>
-            <span className="font-extrabold text-black">UNKNOWN INTERNAL PATH</span>
-          </div>
-          <span className="text-[7.5px] text-[#77776F] uppercase leading-tight pl-6 block">Not externally observable</span>
-        </div>
-
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[#00B873] font-extrabold text-[12px]">●</span>
-            <span className="font-extrabold text-black">LOCAL SOVEREIGN</span>
-          </div>
-          <span className="text-[7.5px] text-[#77776F] uppercase leading-tight pl-6 block">Localhost loopback data</span>
+      {/* Top Left Node Array Card */}
+      <div className="absolute top-12 left-4 z-20 pointer-events-none flex flex-col gap-1 text-[8px] font-mono text-[#050505] bg-[#F8F7F2] p-2 border border-[#050505] shadow-[2px_2px_0px_#050505] min-w-[145px]">
+        <div className="font-extrabold uppercase border-b border-[#050505]/10 pb-0.5 mb-0.5 tracking-wider text-[7.5px] text-[#77776F]">Node Array</div>
+        <div>ORIGIN: IN / 20.59N 78.96E</div>
+        <div>PROVIDER: {activeProviderId.toUpperCase()}</div>
+        <div>TRACE: EXPOSURE MODEL</div>
+        <div className="flex items-center gap-1 text-[#00B873] font-bold mt-0.5">
+          <span className="w-1.5 h-1.5 bg-[#00B873] rounded-full animate-pulse" />
+          <span>CONNECTED</span>
         </div>
       </div>
 
-      {/* Bottom Right Help text */}
-      <div className="absolute bottom-4 right-4 pointer-events-none text-[8px] font-mono text-[#77776F] bg-white px-2.5 py-1 border border-[#050505] uppercase tracking-widest font-bold shadow-[1px_1px_0px_#050505]">
-        DRAG TO ROTATE // CLICK ROUTE FOR EVIDENCE
+      {/* Top Right Confidence Card */}
+      <div className="absolute top-12 right-4 z-20 pointer-events-none flex flex-col gap-1 text-[8px] font-mono text-[#050505] bg-[#F8F7F2] p-2 border border-[#050505] shadow-[2px_2px_0px_#050505] text-right min-w-[125px]">
+        <div className="font-extrabold uppercase border-b border-[#050505]/10 pb-0.5 mb-0.5 tracking-wider text-[7.5px] text-[#77776F] text-right">Confidence</div>
+        <div className="text-[#3B00FF] font-black">90% EXPOSURE MODEL</div>
+        <div>SOURCE PACKETS: 06</div>
+        <div>UNKNOWN EDGES: 01</div>
+      </div>
+
+      {/* Bottom Horizontal Mini Legend Strip */}
+      <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-20 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-[#F8F7F2]/90 backdrop-blur-sm border border-[#050505]/20 px-3.5 py-1.5 text-[7.5px] font-mono font-bold tracking-tight text-[#050505] shadow-[2px_2px_0px_rgba(5,5,5,0.05)] max-w-[90%] justify-center">
+        <div className="flex items-center gap-1">
+          <span className="text-[#00AEEF] font-bold">━━</span>
+          <span>VERIFIED</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[#3B00FF] font-bold">- -</span>
+          <span>DISCLOSED</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[#DFA100] font-bold">···</span>
+          <span>INFERRED</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[#EF2B2B] font-bold">???</span>
+          <span>UNKNOWN</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-[#00B873] font-bold">●</span>
+          <span>LOCAL</span>
+        </div>
+        <div className="h-2 w-[1px] bg-[#050505]/15 hidden xs:block" />
+        <a href="/evidence" className="text-[#3B00FF] hover:underline flex items-center gap-0.5 pointer-events-auto">
+          VIEW METHODOLOGY ↗
+        </a>
+      </div>
+
+      {/* Bottom Caption Overlay */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none text-[6.5px] md:text-[7.5px] font-mono text-[#77776F] uppercase tracking-wide font-bold w-[90%] text-center leading-normal">
+        “Exposure model based on endpoint telemetry, provider disclosures, and marked inference. Not a physical packet trace.”
       </div>
     </div>
   );
