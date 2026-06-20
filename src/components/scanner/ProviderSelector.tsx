@@ -18,9 +18,22 @@ export default function ProviderSelector() {
   const [showKeyModal, setShowKeyModal] = useState<string | null>(null);
   const [tempKey, setTempKey] = useState('');
 
+  const localHasKey = typeof window !== 'undefined' && !!(localStorage.getItem('local_ai_api_key') || process.env.NEXT_PUBLIC_LOCAL_AI_API_KEY);
+  const localProvider = process.env.NEXT_PUBLIC_LOCAL_AI_PROVIDER || 'ollama';
+  const localSimulated = process.env.NEXT_PUBLIC_LOCAL_AI_SIMULATED === 'true' || localProvider === 'demo';
+  const localEndpoint = localSimulated ? 'Loopback (Simulated)' : (process.env.NEXT_PUBLIC_OLLAMA_BASE_URL || 'http://127.0.0.1:11434');
+  const localModel = localSimulated ? 'Llama-3-8B-Instruct' : (process.env.NEXT_PUBLIC_OLLAMA_MODEL || 'llama3.2:3b');
+  const localModeName = localSimulated ? 'Simulated local route' : 'Localhost inference';
+
   const handleOpenKeys = (id: string) => {
     setShowKeyModal(id);
-    setTempKey(id === 'gemini' ? geminiApiKey : openaiApiKey);
+    if (id === 'gemini') {
+      setTempKey(geminiApiKey);
+    } else if (id === 'openai') {
+      setTempKey(openaiApiKey);
+    } else {
+      setTempKey('');
+    }
   };
 
   const handleSaveKey = () => {
@@ -57,9 +70,9 @@ export default function ProviderSelector() {
     {
       id: 'local',
       icon: Shield,
-      modeText: 'Sovereign Local',
-      desc: 'Routes prompt to localhost. High privacy score. Simulated or Ollama loopback.',
-      hasKey: false,
+      modeText: localHasKey ? 'External Gate' : 'Sovereign Local',
+      desc: 'No external API key required. Routes prompt to localhost via Ollama. Foreign provider exposure: 0. Best for sensitive prompts.',
+      hasKey: localHasKey,
     },
   ];
 
@@ -78,6 +91,7 @@ export default function ProviderSelector() {
         {providers.map((p) => {
           const profile = providerProfiles[p.id];
           const isSelected = providerId === p.id;
+          const displayTitle = (p.id === 'local' && localHasKey) ? 'External Provider Mode' : profile.providerName;
 
           return (
             <div
@@ -92,7 +106,7 @@ export default function ProviderSelector() {
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-[15px] font-[900] text-[#050505] uppercase tracking-[0.04em] leading-[1.35]">
-                    {profile.providerName}
+                    {displayTitle}
                   </p>
                   
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -143,54 +157,110 @@ export default function ProviderSelector() {
       {showKeyModal && (
         <div className="fixed inset-0 bg-[#050505]/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-md bg-brutalist-bg border-2 border-brutalist-text rounded-none p-6 flex flex-col gap-4 shadow-[8px_8px_0px_#050505]">
-            <div>
-              <h4 className="text-sm font-bold text-brutalist-text uppercase tracking-wider flex items-center gap-2">
-                <Key size={14} className="text-brutalist-blue" />
-                Configure {showKeyModal === 'gemini' ? 'Google Gemini' : 'OpenAI'} API Key
-              </h4>
-              <p className="text-xs text-brutalist-muted mt-1 leading-relaxed font-mono font-medium">
-                Your key is stored locally in your browser memory and only transmitted directly to the model gateway endpoints.
-              </p>
-            </div>
+            
+            {showKeyModal === 'local' ? (
+              <div className="flex flex-col gap-4">
+                <div>
+                  <h4 className="text-sm font-bold text-brutalist-text uppercase tracking-wider flex items-center gap-2">
+                    <Cpu size={14} className="text-[#00B873]" />
+                    Local Sovereign Configuration
+                  </h4>
+                  <p className="text-xs text-brutalist-muted mt-1 leading-relaxed font-mono font-medium">
+                    Telemetry is routed internally to your machine's hardware loops.
+                  </p>
+                </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-mono text-brutalist-text font-bold uppercase tracking-widest">
-                API Auth Token
-              </label>
-              <input
-                type="password"
-                value={tempKey}
-                onChange={(e) => setTempKey(e.target.value)}
-                placeholder={showKeyModal === 'gemini' ? 'AIzaSy...' : 'sk-...'}
-                className="w-full font-mono text-xs bg-white border-2 border-brutalist-text rounded-none px-3 py-2 text-brutalist-text focus:outline-none focus:ring-1 focus:ring-brutalist-blue"
-              />
-            </div>
+                <div className="flex flex-col gap-2 font-mono text-xs text-brutalist-text">
+                  <div className="grid grid-cols-3 border-b border-black/10 py-1.5">
+                    <span className="font-extrabold text-[#77776F]">Provider:</span>
+                    <span className="col-span-2 font-bold">{localSimulated ? 'Simulated Local Mode' : (localProvider.charAt(0).toUpperCase() + localProvider.slice(1))}</span>
+                  </div>
+                  <div className="grid grid-cols-3 border-b border-black/10 py-1.5">
+                    <span className="font-extrabold text-[#77776F]">Endpoint:</span>
+                    <span className="col-span-2 font-bold break-all">{localEndpoint}</span>
+                  </div>
+                  <div className="grid grid-cols-3 border-b border-black/10 py-1.5">
+                    <span className="font-extrabold text-[#77776F]">Model:</span>
+                    <span className="col-span-2 font-bold">{localModel}</span>
+                  </div>
+                  <div className="grid grid-cols-3 border-b border-black/10 py-1.5">
+                    <span className="font-extrabold text-[#77776F]">API Key:</span>
+                    <span className="col-span-2 text-[#00B873] font-bold">Not required</span>
+                  </div>
+                  <div className="grid grid-cols-3 border-b border-black/10 py-1.5">
+                    <span className="font-extrabold text-[#77776F]">Mode:</span>
+                    <span className="col-span-2 font-bold">{localModeName}</span>
+                  </div>
+                </div>
 
-            {!tempKey && (
-              <div className="flex gap-2.5 items-start p-3 rounded-none border border-brutalist-amber bg-white text-brutalist-amber text-[10px] leading-relaxed font-mono">
-                <AlertTriangle size={14} className="shrink-0 mt-0.5 text-brutalist-amber" />
-                <p>
-                  {showKeyModal === 'gemini' 
-                    ? 'No custom key provided. LeakMap will operate in **Demo Mode**, displaying mock responses and pre-computed telemetry routes.'
-                    : 'No custom key provided. LeakMap will operate in **Evidence Mode**, displaying cached telemetry and regional network boundaries.'}
-                </p>
+                <div className="p-3 border border-brutalist-amber bg-white text-brutalist-amber text-[10px] leading-relaxed font-mono">
+                  <AlertTriangle size={14} className="shrink-0 float-left mr-2 mt-0.5 text-brutalist-amber" />
+                  <p className="uppercase font-bold">Important Warning:</p>
+                  <p>Do NOT set local keys to external provider keys. If an external API key is used, it operates in **External Provider Mode**, not **Local Sovereign Mode**.</p>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 mt-2 font-mono">
+                  <button
+                    onClick={() => setShowKeyModal(null)}
+                    className="brutalist-button text-xs py-1.5 px-4 cursor-pointer"
+                  >
+                    Close Settings
+                  </button>
+                </div>
               </div>
+            ) : (
+              <>
+                <div>
+                  <h4 className="text-sm font-bold text-brutalist-text uppercase tracking-wider flex items-center gap-2">
+                    <Key size={14} className="text-brutalist-blue" />
+                    Configure {showKeyModal === 'gemini' ? 'Google Gemini' : 'OpenAI'} API Key
+                  </h4>
+                  <p className="text-xs text-brutalist-muted mt-1 leading-relaxed font-mono font-medium">
+                    Your key is stored locally in your browser memory and only transmitted directly to the model gateway endpoints.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-mono text-brutalist-text font-bold uppercase tracking-widest">
+                    API Auth Token
+                  </label>
+                  <input
+                    type="password"
+                    value={tempKey}
+                    onChange={(e) => setTempKey(e.target.value)}
+                    placeholder={showKeyModal === 'gemini' ? 'AIzaSy...' : 'sk-...'}
+                    className="w-full font-mono text-xs bg-white border-2 border-brutalist-text rounded-none px-3 py-2 text-brutalist-text focus:outline-none focus:ring-1 focus:ring-brutalist-blue"
+                  />
+                </div>
+
+                {!tempKey && (
+                  <div className="flex gap-2.5 items-start p-3 rounded-none border border-brutalist-amber bg-white text-brutalist-amber text-[10px] leading-relaxed font-mono">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5 text-brutalist-amber" />
+                    <p>
+                      {showKeyModal === 'gemini' 
+                        ? 'No custom key provided. LeakMap will operate in **Demo Mode**, displaying mock responses and pre-computed telemetry routes.'
+                        : 'No custom key provided. LeakMap will operate in **Evidence Mode**, displaying cached telemetry and regional network boundaries.'}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 mt-2 font-mono">
+                  <button
+                    onClick={() => setShowKeyModal(null)}
+                    className="px-3 py-1.5 text-xs text-brutalist-muted hover:text-brutalist-text font-bold uppercase tracking-wider cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveKey}
+                    className="brutalist-button text-xs py-1.5 px-4 cursor-pointer"
+                  >
+                    Apply Token
+                  </button>
+                </div>
+              </>
             )}
 
-            <div className="flex items-center justify-end gap-3 mt-2 font-mono">
-              <button
-                onClick={() => setShowKeyModal(null)}
-                className="px-3 py-1.5 text-xs text-brutalist-muted hover:text-brutalist-text font-bold uppercase tracking-wider cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveKey}
-                className="brutalist-button text-xs py-1.5 px-4 cursor-pointer"
-              >
-                Apply Token
-              </button>
-            </div>
           </div>
         </div>
       )}

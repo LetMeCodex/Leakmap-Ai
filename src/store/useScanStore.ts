@@ -180,26 +180,17 @@ export const useScanStore = create<ScanStore>((set, get) => ({
         aiResponse = `[Claude Evidence Mode] Prompt was analyzed locally; no Anthropic Claude API call was made. Claude API traffic requires paid credentials. Standard routing terminates inside Amazon Web Services (AWS) data centers located in the US-East (N. Virginia) region. Under Anthropic commercial boundaries, API data is stored for up to 28 days and excluded from model training databases.`;
         mode = 'evidence';
       } else if (providerId === 'local') {
-        // Try local Ollama backend if user wants to play, otherwise simulated
         try {
-          const ollamaRes = await fetch('http://localhost:11434/api/generate', {
+          const res = await fetch('/api/local', {
             method: 'POST',
-            body: JSON.stringify({
-              model: 'llama3',
-              prompt: textToSubmit,
-              stream: false,
-            }),
-            signal: AbortSignal.timeout(3000), // 3s timeout
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: textToSubmit }),
           });
-          if (ollamaRes.ok) {
-            const data = await ollamaRes.json();
-            aiResponse = `[Sovereign Local Host (vLLM/Ollama)] ${data.response}`;
-            mode = 'local';
-          } else {
-            throw new Error('Ollama offline');
-          }
-        } catch (e) {
-          aiResponse = `[Simulated Sovereign Node] Model: Llama-3-8B-Instruct. Routing: Loopback interface. Compute footprint: 100% localized to host memory. No packets left the local gateway. Threat exposure: 0. Privacy index: 100%. Response: Local sovereign environment verified. Processing of prompt completed on local hardware safely.`;
+          const data = await res.json();
+          aiResponse = data.response;
+          mode = data.mode || 'local';
+        } catch (err: any) {
+          aiResponse = `[Simulated local route — no external API call was made] Model: Llama-3-8B-Instruct. Routing: Loopback interface. Compute footprint: 100% localized to host memory. No packets left the local gateway. Threat exposure: 0. Privacy index: 100%. Response: Local sovereign environment verified. Processing of prompt completed on local hardware safely.`;
           mode = 'local';
         }
       }

@@ -14,6 +14,11 @@ export default function AIResponsePanel() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const isSimulatedLocal = activeResult && activeResult.mode === 'local' && (
+    activeResult.aiResponse.includes('Simulated local route') || 
+    activeResult.aiResponse.includes('Simulated Sovereign Node')
+  );
+
   if (isAnalyzing) {
     return (
       <div className="w-full bg-white border-2 border-black rounded-none p-6 min-h-[220px] flex flex-col items-center justify-center text-center select-none shadow-[4px_4px_0px_#050505]">
@@ -90,6 +95,13 @@ export default function AIResponsePanel() {
           {copied ? 'COPIED' : 'COPY PAYLOAD'}
         </button>
       </div>
+
+      {isSimulatedLocal && (
+        <div className="px-5 py-2.5 border-b border-black bg-brutalist-amber/10 text-brutalist-amber text-[10px] font-mono font-bold uppercase flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-brutalist-amber animate-pulse shrink-0" />
+          <span>Simulated local route — no external API call was made.</span>
+        </div>
+      )}
 
       {/* Response content */}
       <div className="p-5 flex-1 select-text bg-white">
