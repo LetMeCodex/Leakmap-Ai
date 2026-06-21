@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   description: "Visualize where your sensitive prompts may travel across AI providers, subprocessor networks, and foreign cloud regions before you send them.",
   keywords: ["AI sovereignty", "AI compliance", "data security", "national data security", "prompt scanner", "PII redaction", "geopolitics", "jurisdiction tracking"],
   authors: [{ name: "LeakMap AI Team" }],
+  icons: {
+    icon: "/leakmap-mark.svg",
+    shortcut: "/leakmap-mark.svg",
+    apple: "/leakmap-mark.svg",
+  },
 };
 
 export const viewport: Viewport = {

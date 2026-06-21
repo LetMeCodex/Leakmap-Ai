@@ -19,7 +19,12 @@ export default function TopNav() {
   return (
     <header className="sticky top-0 z-40 bg-[#F4F2EC]/95 border-b-2 border-black px-6 py-5 flex items-center justify-between text-xs font-mono font-bold uppercase tracking-wider select-none">
       <div className="flex items-center gap-2">
-        <Link href="/" className="flex items-center gap-1 hover:opacity-85 transition-opacity">
+        <Link href="/" className="flex items-center gap-2 hover:opacity-85 transition-opacity">
+          <img
+            src="/leakmap-mark.svg"
+            alt="LeakMap Logo"
+            className="w-5 h-5 object-contain"
+          />
           <span className="font-extrabold tracking-widest text-sm text-[#050505]">LEAKMAP</span>
           <span className="text-[#3B00FF] text-lg leading-none select-none">•</span>
         </Link>
