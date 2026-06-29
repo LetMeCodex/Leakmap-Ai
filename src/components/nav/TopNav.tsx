@@ -11,6 +11,7 @@ export default function TopNav() {
   const navItems = [
     { label: 'INDEX', path: '/' },
     { label: 'SCANNER', path: '/scanner' },
+    { label: 'BORDER CONTROL', path: '/border-control' },
     { label: 'MAP', path: '/map' },
     { label: 'PASSPORT', path: '/passport' },
     { label: 'EVIDENCE', path: '/evidence' },
